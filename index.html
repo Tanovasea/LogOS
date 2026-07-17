@@ -1,0 +1,3572 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0d1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Logos">
+<meta name="description" content="Logos — microsistemul tău personal. Offline. Al tău.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Logos</title>
+<style>
+  :root{
+    --fundal:#0d1117;      /* gri-albastru tehnic, adânc */
+    --panou:#161b22;
+    --linie:#21262d;
+    --linie-clar:#30363d;
+    --text:#c9d1d9;
+    --text-stins:#8b949e;
+    --accent:#58a6ff;      /* albastru terminal */
+    --accent-cald:#d29922; /* chihlimbar pentru accente */
+    --verde:#3fb950;
+    --rosu:#f85149;
+    --mono:'SF Mono','JetBrains Mono','Roboto Mono',ui-monospace,'Courier New',monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  /* barele de control din ferestre NU se selectează, chiar dacă fereastra e activă */
+  .viz-bara, #term-unelte, #intrare-term, .term-setari, .viz-panou,
+  .cap-fereastra, .ed-cap, .fila, #bara, #dock, .ic, #salut-desktop{
+    -webkit-user-select:none !important;user-select:none !important;
+  }
+  html,body{
+    height:100%;background:var(--fundal);color:var(--text);
+    font-family:-apple-system,'Segoe UI',Roboto,sans-serif;
+    overflow:hidden;overscroll-behavior:none;
+    -webkit-user-select:none;user-select:none;  /* interfața nu se selectează */
+  }
+  /* doar CONȚINUTUL real e selectabil: text din fișiere și terminal */
+  #iesire-term, .viz-corp, .corp-fereastra pre, .corp-fereastra .vd,
+  .corp-fereastra .doc, .ed-area, textarea, input{
+    -webkit-user-select:text;user-select:text;
+  }
+
+  /* ===== BARA DE SUS ===== */
+  #bara{
+    position:fixed;top:0;left:0;right:0;height:calc(env(safe-area-inset-top,0) + 46px);
+    padding-top:env(safe-area-inset-top,0);
+    background:var(--panou);border-bottom:1px solid var(--linie);
+    display:flex;align-items:center;justify-content:flex-start;gap:10px;
+    padding-left:14px;padding-right:12px;z-index:100;
+  }
+  #marca{display:flex;align-items:center;gap:7px;font-weight:700;letter-spacing:0;font-size:.95rem}
+  #marca .astru{
+    position:relative;width:16px;height:16px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+  }
+  #marca .pct{
+    width:8px;height:8px;border-radius:50%;
+    background:var(--accent);box-shadow:0 0 8px var(--accent),0 0 14px rgba(88,166,255,.5);
+    position:relative;z-index:2;
+  }
+  /* semicercul în jurul punctului luminos */
+  #marca .arc{
+    position:absolute;inset:0;border-radius:50%;
+    border:1.5px solid var(--accent);
+    border-right-color:transparent;border-bottom-color:transparent;
+    transform:rotate(-45deg);opacity:.85;
+  }
+  #marca .nume{display:inline-block}
+  #marca .nume b{color:var(--accent);font-weight:700}  /* OS evidențiat */
+  #ceas{display:none}
+
+  /* ===== ECRANUL DE PORNIRE (desktop) ===== */
+  #desktop{
+    position:absolute;inset:0;top:calc(env(safe-area-inset-top,0) + 46px);
+    bottom:env(safe-area-inset-bottom,0);
+    padding:26px 22px;overflow-y:auto;
+  }
+  #salut-desktop{color:var(--text-stins);font-size:.9rem;margin-bottom:22px;line-height:1.5}
+  #salut-desktop b{color:var(--text)}
+  #grila{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px 4px;
+  }
+  .ic{
+    display:flex;flex-direction:column;align-items:center;gap:8px;
+    padding:12px 6px;border-radius:14px;cursor:pointer;
+    transition:background .15s ease, transform .1s ease;
+  }
+  .ic:active{background:var(--linie);transform:scale(.94)}
+  .ic .glif{
+    width:52px;height:52px;border-radius:15px;
+    background:linear-gradient(150deg,var(--panou),#1c2430);
+    border:1px solid var(--linie-clar);
+    display:flex;align-items:center;justify-content:center;
+    font-size:25px;
+  }
+  .ic .nume{font-size:.74rem;color:var(--text-stins);text-align:center;letter-spacing:.02em}
+
+  /* ===== DOCK JOS ===== */
+  #dock{display:none}
+
+  /* ===== COMUTATORUL (în continuarea mărcii, inline în bară) ===== */
+  #comutator{
+    flex:1;min-width:0;height:100%;
+    display:flex;gap:6px;align-items:center;
+    overflow-x:auto;overflow-y:hidden;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  #comutator::-webkit-scrollbar{display:none}
+  .fila{
+    display:flex;align-items:center;gap:6px;flex-shrink:0;
+    padding:5px 9px;border-radius:8px;cursor:pointer;
+    background:var(--fundal);border:1px solid var(--linie);
+    font-size:.76rem;color:var(--text-stins);
+    transition:all .15s ease;white-space:nowrap;
+  }
+  .fila.activa{border-color:var(--accent);color:var(--text);background:#11202e}
+  .fila .fg{font-size:.85rem}
+  .fila .ft{max-width:90px;overflow:hidden;text-overflow:ellipsis}
+  .fila .fx{
+    margin-left:1px;width:16px;height:16px;border-radius:4px;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--text-stins);font-size:12px;
+  }
+  .fila .fx:active{background:var(--linie);color:var(--rosu)}
+
+  /* ===== FERESTRELE (mai multe vii deodată) ===== */
+  #ferestre{
+    position:absolute;inset:0;top:calc(env(safe-area-inset-top,0) + 46px);
+    bottom:env(safe-area-inset-bottom,0);
+    z-index:50;
+    pointer-events:none;   /* stratul gol lasă atingerea la desktop */
+  }
+  /* dar ferestrele vii primesc toate atingerile */
+  .fereastra.deschis,
+  .fereastra.fundal,
+  .maner-redim{ pointer-events:auto }
+  .fereastra.deschis *,
+  .fereastra.fundal *{ pointer-events:auto }
+  .fereastra{
+    position:absolute;inset:0;
+    background:var(--fundal);
+    display:flex;flex-direction:column;
+    transform:translateY(100%);opacity:0;pointer-events:none;
+    visibility:hidden;user-select:none;-webkit-user-select:none;
+    transition:transform .3s cubic-bezier(.2,.8,.2,1), opacity .3s ease, visibility 0s .3s;
+  }
+  .fereastra.deschis{transform:translateY(0);opacity:1;pointer-events:auto;visibility:visible;user-select:text;-webkit-user-select:text;transition:transform .3s cubic-bezier(.2,.8,.2,1), opacity .3s ease, visibility 0s}
+  .fereastra.fundal{transform:translateY(0);opacity:0;pointer-events:none;visibility:hidden;user-select:none;-webkit-user-select:none;transition:none}
+  .cap-fereastra{
+    display:none;align-items:center;gap:12px;padding:10px 14px;
+    border-bottom:1px solid var(--linie);background:var(--panou);
+  }
+  .cap-fereastra .titlu{font-weight:600;font-size:.92rem;flex:1}
+  .cap-fereastra .x{
+    width:30px;height:30px;border-radius:8px;border:1px solid var(--linie-clar);
+    display:flex;align-items:center;justify-content:center;color:var(--text-stins);
+    cursor:pointer;font-size:18px;
+  }
+  .cap-fereastra .x:active{background:var(--linie);color:var(--text)}
+  .corp-fereastra{flex:1;overflow:hidden;position:relative}
+
+  /* ===== MOD BIROU (ecran mare): ferestre alăturate ===== */
+  body.birou #ferestre{
+    display:flex;flex-direction:row;gap:1px;background:var(--linie-clar);
+  }
+  body.birou .fereastra{
+    position:relative;inset:auto;flex:1 1 0;min-width:220px;
+    transform:none;opacity:1;visibility:visible;
+    user-select:text;-webkit-user-select:text;
+    transition:none;border:none;
+    display:none;
+  }
+  /* mâner de redimensionare între ferestre (doar cu mouse — degetul nu-l poate apuca bine) */
+  .maner-redim{
+    display:none;flex:0 0 5px;cursor:col-resize;
+    background:var(--linie-clar);
+    align-self:stretch;position:relative;z-index:200;
+    user-select:none;-webkit-user-select:none;touch-action:none;
+  }
+  .maner-redim::before{
+    content:'';position:absolute;top:0;bottom:0;left:-5px;right:-5px;
+  }
+  .maner-redim::after{
+    content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    width:2px;height:26px;border-radius:2px;background:var(--text-stins);opacity:.5;
+  }
+  .maner-redim:hover,.maner-redim.activ{background:var(--accent)}
+  .maner-redim:hover::after,.maner-redim.activ::after{background:#fff;opacity:1}
+  body.birou .maner-redim{display:flex}
+  /* pe atingere, mânerul e mai lat, ca să-l prinzi cu degetul */
+  body.birou.deget .maner-redim{flex:0 0 14px}
+  body.birou.deget .maner-redim::before{left:-8px;right:-8px}
+  /* fereastra activă are capul evidențiat */
+  body.birou .fereastra.activa .cap-fereastra{
+    background:var(--panou);box-shadow:inset 0 2px 0 var(--accent)
+  }
+  body.birou .fereastra.activa .cap-fereastra .titlu{color:var(--accent)}
+  /* când ești Acasă în mod birou, ascunde ferestrele ca să vezi iconițele */
+  body.birou.acasa #ferestre{display:none}
+  /* când ai ferestre deschise, ecranul de acasă nu fură atingerile */
+  body.birou:not(.acasa) #desktop{pointer-events:none}
+  body.birou .fereastra.deschis,
+  body.birou .fereastra.fundal{
+    display:flex;transform:none;opacity:1;visibility:visible;pointer-events:auto;
+  }
+  body.birou .maner-redim{display:flex;pointer-events:auto}
+  /* în mod birou arătăm din nou capul ferestrei (cu titlu + ✕), ca să știi care e care */
+  body.birou .cap-fereastra{display:flex}
+  body.birou .fereastra:not(:last-child){border-right:1px solid var(--linie-clar)}
+  /* pe ecran mare, conținutul central are o lățime plăcută */
+  body.birou #desktop{max-width:none}
+
+  /* ===== APLICAȚIA FIȘIERE ===== */
+  .fisiere{height:100%;overflow-y:auto;padding:8px 0}
+  .cale-bar{padding:10px 18px;color:var(--text-stins);font-family:var(--mono);font-size:.8rem;border-bottom:1px solid var(--linie)}
+
+  .fm-corp{flex:1;display:flex;min-height:0;overflow:hidden}
+
+  /* ===== TEMPORIZATOARE ÎN BARĂ ===== */
+  #temporizatoare{display:flex;gap:6px;align-items:center;margin-left:auto;padding-left:10px;flex-shrink:0}
+  .temp-chip{
+    display:flex;align-items:center;gap:7px;padding:5px 9px;border-radius:8px;
+    background:var(--panou);border:1px solid var(--linie-clar);
+    font-size:.76rem;color:var(--text);white-space:nowrap;max-width:220px;
+  }
+  .temp-ceas{font-family:var(--mono);color:var(--accent);font-weight:600}
+  .temp-txt{color:var(--text-stins);overflow:hidden;text-overflow:ellipsis;max-width:110px}
+  .temp-x{cursor:pointer;color:var(--text-stins);padding:0 2px;font-size:.85rem}
+  .temp-x:hover{color:var(--rosu)}
+  .temp-chip.aproape{border-color:var(--rosu);animation:temp-puls 1s ease-in-out infinite}
+  .temp-chip.aproape .temp-ceas{color:var(--rosu)}
+  @keyframes temp-puls{0%,100%{opacity:1}50%{opacity:.6}}
+  @media(max-width:600px){ .temp-txt{display:none} #temporizatoare{padding-left:6px} }
+
+  .fm-item{
+    -webkit-touch-callout:none;
+    -webkit-user-select:none;user-select:none;
+    -webkit-tap-highlight-color:transparent;
+    cursor:pointer;   /* pe Safari/iOS, fără asta „click" nu se declanșează pe div-uri */
+  }
+  /* pe Safari/iOS, orice element pe care apeși are nevoie de cursor:pointer */
+  .ic,.fila,.uf,.ms-r,.fm-meniu-b,.temp-x,.cap-fereastra .x,
+  .buton-adauga,.rand .info,.rand .ig,.sterge-app,.u-bif,.u-x,
+  .fm-inapoi,.term-buton,.viz-buton{ cursor:pointer }
+
+  /* ===== MENIU START ===== */
+  #meniu-start{
+    position:fixed;z-index:500;min-width:250px;max-width:300px;
+    background:var(--panou);border:1px solid var(--linie-clar);border-radius:12px;
+    box-shadow:0 12px 40px rgba(0,0,0,.55);
+    padding:7px;animation:ms-apare .12s ease-out;
+    max-height:70vh;overflow-y:auto;
+  }
+  @keyframes ms-apare{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+  .ms-sec{
+    font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;
+    color:var(--text-stins);padding:8px 12px 5px;font-weight:600;
+  }
+  .ms-r{
+    display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:8px;
+    cursor:pointer;font-size:.9rem;color:var(--text);white-space:nowrap;
+    overflow:hidden;
+  }
+  .ms-r:hover{background:var(--linie)}
+  .ms-r.mic{font-size:.82rem;color:var(--text-stins);padding:8px 12px}
+  .ms-r.mic:hover{color:var(--text)}
+  .ms-r.rosu{color:var(--rosu)}
+  .ms-ic{
+    width:1.5em;text-align:center;flex-shrink:0;
+    font-family:var(--mono);color:var(--accent);font-size:.95rem;
+  }
+  .ms-r.rosu .ms-ic{color:var(--rosu)}
+  .ms-r span:nth-child(2){overflow:hidden;text-overflow:ellipsis}
+  .ms-scurt{margin-left:auto;font-size:.7rem;color:var(--text-stins);font-family:var(--mono);padding-left:10px}
+  .ms-linie{height:1px;background:var(--linie);margin:6px 8px}
+
+  /* ===== TRAGERE ÎNTRE FERESTRE ===== */
+  .fm-item[draggable]{cursor:grab}
+  .fm-item.se-trage{opacity:.35}
+  .fm-item.tinta{background:var(--panou);outline:2px dashed var(--accent);outline-offset:-3px}
+  .fm-item.tinta .fm-ic-folder{transform:scale(1.08)}
+  .fm-inapoi.tinta{background:var(--accent);color:#fff;border-color:var(--accent)}
+  /* când tragi, folderele sar în ochi */
+  body.trag-fisier .fm-ic-folder{box-shadow:0 0 0 2px var(--accent), 0 2px 6px rgba(0,0,0,.35)}
+  .term-tinta{outline:2px dashed var(--accent);outline-offset:-6px}
+
+  /* ===== DRAG & DROP ===== */
+  .drop-voal{position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.72);
+    display:flex;align-items:center;justify-content:center;pointer-events:none}
+  .drop-cutie{border:2px dashed var(--accent);border-radius:18px;padding:44px 60px;
+    text-align:center;color:var(--accent);font-size:1.15rem;line-height:1.9;background:var(--panou)}
+  .drop-cutie small{color:var(--text-stins);font-size:.8rem}
+
+  /* ===== UTILITARE ===== */  .util{height:100%;display:flex;flex-direction:column;overflow:hidden}
+  .util-file{display:flex;gap:4px;padding:10px 12px;border-bottom:1px solid var(--linie);
+    overflow-x:auto;flex-shrink:0;-webkit-overflow-scrolling:touch}
+  .uf{padding:7px 14px;border-radius:9px;font-size:.82rem;color:var(--text-stins);
+    cursor:pointer;white-space:nowrap;border:1px solid transparent}
+  .uf.activa{color:var(--accent);border-color:var(--linie-clar);background:var(--panou)}
+  .uf:active{opacity:.7}
+  .util-corp{flex:1;overflow-y:auto;padding:16px 14px 40px;-webkit-overflow-scrolling:touch}
+  .u-rand{margin-bottom:18px}
+  .u-rand label{display:block;font-size:.78rem;color:var(--text-stins);margin-bottom:7px;font-weight:600}
+  .u-ctrl{display:flex;gap:8px}
+  .u-ctrl input{flex:1;min-width:0;padding:11px 12px;border-radius:9px;border:1px solid var(--linie-clar);
+    background:var(--fundal);color:var(--text);font-size:.92rem;outline:none;font-family:inherit}
+  .u-ctrl input:focus{border-color:var(--accent)}
+  .u-ctrl button{padding:11px 16px;border-radius:9px;border:1px solid var(--accent);
+    background:transparent;color:var(--accent);font-size:.85rem;cursor:pointer;white-space:nowrap}
+  .u-ctrl button:active{background:var(--accent);color:#fff}
+  .u-rez{margin-top:8px;font-size:.9rem;min-height:1.2em;word-break:break-all}
+  .u-rez.ok{color:var(--accent-cald)}
+  .u-rez.err{color:var(--rosu)}
+  .u-rez.mono{font-family:var(--mono);font-size:.85rem}
+  .u-nota{font-size:.75rem;color:var(--text-stins);padding:8px 0;line-height:1.5}
+  .u-info{text-align:center;padding:22px;font-size:.9rem;color:var(--text-stins);line-height:1.8}
+  .u-info b{font-size:2.1rem;color:var(--accent);font-family:var(--mono)}
+  .u-gol{color:var(--text-stins);font-size:.85rem;padding:16px 0;text-align:center}
+  /* sarcini */
+  .u-lista{margin-top:6px}
+  .u-sarcina{display:flex;align-items:center;gap:11px;padding:12px 4px;border-bottom:1px solid var(--linie)}
+  .u-bif{cursor:pointer;color:var(--accent);font-size:1.1rem;width:1.2em;text-align:center}
+  .u-txt{flex:1;font-size:.92rem}
+  .u-txt i{font-size:.78rem;color:var(--text-stins);font-style:normal}
+  .u-sarcina.gata .u-txt{opacity:.45;text-decoration:line-through}
+  .u-sarcina.intarziat .u-txt i{color:var(--rosu)}
+  .u-x{cursor:pointer;color:var(--text-stins);padding:0 6px}
+  .u-x:active{color:var(--rosu)}
+  /* bani */
+  .u-bilant{margin-top:8px}
+  .u-bar{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:.85rem}
+  .u-cat{width:6.5em;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .u-bara{flex:1;height:8px;background:var(--linie);border-radius:4px;overflow:hidden}
+  .u-bara i{display:block;height:100%;background:var(--accent);border-radius:4px}
+  .u-suma{width:7em;text-align:right;color:var(--text-stins);font-family:var(--mono);font-size:.8rem}
+  .u-total{margin-top:14px;padding-top:12px;border-top:1px solid var(--linie-clar);
+    color:var(--accent-cald);font-weight:600}
+  /* ===== MANAGER FIȘIERE VIZUAL ===== */
+  .fm-bara{display:flex;align-items:center;gap:14px;padding:10px 16px;border-bottom:1px solid var(--linie)}
+  .fm-inapoi{color:var(--accent);cursor:pointer;font-size:.9rem;padding:6px 10px;border:1px solid var(--linie-clar);border-radius:8px}
+  .fm-inapoi:active{background:var(--linie)}
+  .fm-drum{color:var(--text-stins);font-family:var(--mono);font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .fm-grila{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));
+    align-content:start;grid-auto-rows:min-content;
+    gap:6px;padding:14px 12px;overflow-y:auto;
+  }
+  .fm-item{
+    display:flex;flex-direction:column;align-items:center;gap:6px;
+    padding:12px 6px;border-radius:12px;cursor:pointer;text-align:center;
+  }
+  .fm-item:active{background:var(--panou)}
+  /* folder ca-n Windows: corp chihlimbar cu clapetă */
+  .fm-ic-folder{
+    width:52px;height:38px;position:relative;margin-top:8px;
+    background:linear-gradient(180deg,#e8b64c,#d29a2f);
+    border-radius:4px 6px 6px 6px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.35), 0 2px 6px rgba(0,0,0,.35);
+  }
+  .fm-ic-folder::before{
+    content:'';position:absolute;top:-7px;left:0;
+    width:22px;height:9px;
+    background:linear-gradient(180deg,#e8b64c,#dfa93e);
+    border-radius:4px 6px 0 0;
+  }
+  /* fișier: foaie cu colț îndoit */
+  .fm-ic-fisier{
+    width:40px;height:50px;position:relative;
+    background:linear-gradient(180deg,#f2f3f5,#d8dbe0);
+    border-radius:4px;
+    box-shadow:0 2px 6px rgba(0,0,0,.35);
+    display:flex;align-items:flex-end;justify-content:center;padding-bottom:5px;
+  }
+  .fm-ic-fisier::before{
+    content:'';position:absolute;top:0;right:0;
+    width:12px;height:12px;
+    background:linear-gradient(225deg,var(--fundal) 50%,#b9bec6 50%);
+    border-radius:0 4px 0 4px;
+  }
+  .fm-ext{font-size:.55rem;font-weight:700;color:#4a5462;letter-spacing:.03em}
+  .fm-nume{font-size:.74rem;color:var(--text);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .fm-meta{font-size:.64rem;color:var(--text-stins)}
+  .fisiere{height:100%;display:flex;flex-direction:column;position:relative;
+    -webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+  .fm-grila{flex:1}
+  .fm-lacat{position:absolute;top:-8px;right:-8px;font-size:.85rem;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
+  .fm-ic-folder,.fm-ic-fisier{position:relative}
+  /* meniul de jos (apăsare lungă) */
+  .fm-meniu{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:400;display:flex;align-items:flex-end}
+  .fm-meniu-c{width:100%;background:var(--panou);border-radius:16px 16px 0 0;
+    padding:8px 12px calc(env(safe-area-inset-bottom,0) + 12px);
+    box-shadow:0 -8px 30px rgba(0,0,0,.5);
+    max-height:80vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .fm-meniu-t{color:var(--text-stins);font-size:.78rem;padding:10px 8px 6px;text-align:center;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .fm-meniu-b{padding:15px;text-align:center;color:var(--text);cursor:pointer;font-size:.95rem;
+    border-top:1px solid var(--linie)}
+  .fm-meniu-b:active{background:var(--linie)}
+  .fm-meniu-b.rosu{color:var(--rosu)}
+  .fm-meniu-b.anuleaza{color:var(--accent);font-weight:600;border-top:2px solid var(--linie-clar)}
+  .buton-nou{
+    display:flex;align-items:center;gap:10px;justify-content:center;
+    margin:14px 16px;padding:14px;border-radius:12px;cursor:pointer;
+    background:var(--accent);color:#fff;font-weight:600;font-size:.95rem;
+  }
+  .buton-nou:active{opacity:.8}
+  .rand{
+    display:flex;align-items:center;gap:14px;padding:13px 18px;cursor:pointer;
+    border-bottom:1px solid var(--linie);
+  }
+  .rand:active{background:var(--panou)}
+  .rand .ig{font-size:21px;width:24px;text-align:center}
+  .rand .info{flex:1;min-width:0}
+  .rand .n{font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rand .m{font-size:.72rem;color:var(--text-stins);margin-top:2px}
+  .gol{padding:50px 24px;text-align:center;color:var(--text-stins);font-size:.88rem;line-height:1.6}
+
+  /* ===== TERMINAL (cu teme alese de tine) ===== */
+  .term{height:100%;display:flex;flex-direction:column;position:relative;
+    background:var(--t-bg, #0a0e14); color:var(--t-text, #c9d1d9);
+    transition:background .25s ease, color .25s ease}
+  #iesire-term{
+    flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    padding:14px 16px;font-family:var(--mono);
+    font-size:var(--t-font, 1.12rem);
+    line-height:var(--t-lh, 1.7);
+    letter-spacing:var(--t-ls, 0);
+    white-space:pre-wrap;word-break:break-word;
+  }
+  #iesire-term .ln{margin-bottom:2px}
+  #iesire-term .prompt{color:var(--t-verde, #3fb950)}
+  #iesire-term .cmd-ecou{color:var(--t-verde, #3fb950)}
+  #iesire-term .ok{color:var(--t-text, #c9d1d9)}
+  #iesire-term .err{color:#f85149}
+  #iesire-term .info{color:var(--t-accent, #58a6ff)}
+  /* ajutor: comanda + definiția pe ACELAȘI rând, orizontal */
+  #iesire-term .randc{margin-bottom:5px;line-height:1.4}
+  #iesire-term .cmd-nume{color:var(--t-cald, #d29922);font-weight:600;white-space:nowrap}
+  #iesire-term .cmd-desc{color:var(--t-stins, #8b949e);font-size:.92em;display:block;padding-left:1.2em;white-space:pre-wrap;word-break:break-word}
+  #iesire-term .cald{color:var(--t-cald, #d29922)}
+  /* cuvinte învățate: cuvântul sus, descrierea dedesubt (toată, pe lățime) */
+  #iesire-term .rand-inv{margin:4px 0 8px}
+  #iesire-term .inv-cuv{color:var(--t-cald, #d29922);font-weight:600}
+  #iesire-term .inv-desc{color:var(--t-stins, #8b949e);font-size:.94em;padding-left:1.2em;white-space:pre-wrap;word-break:break-word}
+  #iesire-term .rand-fis{padding:3px 0;cursor:pointer}
+  #iesire-term .fis-link{color:var(--t-accent, #58a6ff);text-decoration:underline;text-underline-offset:3px}
+  #iesire-term .rand-fis:active .fis-link{opacity:.6}
+  #iesire-term .fis-extra{color:var(--t-stins, #8b949e);font-size:.9em}
+  #iesire-term .stins{color:var(--t-stins, #8b949e)}
+  #intrare-term{
+    display:flex;align-items:center;gap:8px;padding:12px 16px;
+    border-top:1px solid var(--t-linie, #21262d);
+    background:var(--t-panou, #161b22);
+  }
+  #intrare-term .pr{color:var(--t-verde, #3fb950);font-family:var(--mono);font-size:1.15rem}
+  #intrare-term input{
+    flex:1;background:none;border:none;outline:none;color:var(--t-text, #c9d1d9);
+    font-family:var(--mono);font-size:1.15rem;
+  }
+  #intrare-term input::placeholder{color:var(--t-stins, #8b949e)}
+  /* bara mică de unelte a terminalului */
+  #term-unelte{
+    display:flex;align-items:center;gap:6px;padding:6px 12px;flex-shrink:0;
+    border-bottom:1px solid var(--t-linie, #21262d);background:var(--t-panou, #161b22);
+  }
+  #term-unelte .tu{
+    font-size:.78rem;padding:5px 10px;border-radius:7px;cursor:pointer;
+    color:var(--t-accent, #58a6ff);border:1px solid var(--t-linie, #21262d);white-space:nowrap;
+  }
+  #term-unelte .tu:active{opacity:.6}
+  #term-unelte .sp{flex:1}
+  /* panoul de setări terminal */
+  .term-setari{
+    position:absolute;left:0;right:0;bottom:0;z-index:15;
+    background:var(--t-panou, #161b22);border-top:1px solid var(--linie-clar);
+    padding:14px 16px calc(env(safe-area-inset-bottom,0) + 16px);
+    transform:translateY(110%);transition:transform .28s cubic-bezier(.2,.8,.2,1);
+    max-height:75%;overflow-y:auto;
+  }
+  .term-setari.deschis{transform:translateY(0)}
+  .ts-rand{display:flex;flex-direction:column;gap:7px;margin-bottom:14px}
+  .ts-rand label{font-size:.78rem;color:var(--t-stins, #8b949e);font-weight:600}
+  .ts-ctrl{display:flex;align-items:center;gap:12px}
+  .ts-ctrl input[type=range]{flex:1;accent-color:var(--t-accent, #58a6ff);height:26px}
+  .ts-val{font-size:.78rem;color:var(--t-stins, #8b949e);min-width:3.4em;text-align:right;font-family:var(--mono)}
+  .ts-teme{display:flex;gap:10px;flex-wrap:wrap}
+  .ts-tema{
+    flex:1;min-width:80px;padding:12px 8px;border-radius:10px;cursor:pointer;
+    text-align:center;font-size:.8rem;border:2px solid transparent;
+  }
+  .ts-tema.activa{border-color:var(--t-accent, #58a6ff)}
+  .term-setari-x{text-align:center;color:var(--t-accent, #58a6ff);font-size:.85rem;padding:8px;cursor:pointer;margin-top:4px}
+  /* panou aspect pentru vizualizator fișiere */
+  .viz-panou{
+    position:absolute;left:0;right:0;bottom:0;z-index:15;
+    background:#161b22;border-top:1px solid #30363d;
+    padding:14px 16px calc(env(safe-area-inset-bottom,0) + 16px);
+    transform:translateY(110%);transition:transform .28s cubic-bezier(.2,.8,.2,1);
+    max-height:75%;overflow-y:auto;color:#c9d1d9;
+  }
+  .viz-panou.deschis{transform:translateY(0)}
+  .viz-panou .ts-rand{display:flex;flex-direction:column;gap:7px;margin-bottom:14px}
+  .viz-panou label{font-size:.78rem;color:#8b949e;font-weight:600}
+  .viz-panou .ts-ctrl{display:flex;align-items:center;gap:12px}
+  .viz-panou input[type=range]{flex:1;accent-color:#58a6ff;height:26px}
+  .viz-panou .ts-val{font-size:.78rem;color:#8b949e;min-width:3.4em;text-align:right;font-family:var(--mono)}
+  .ed-sw2{display:flex;gap:8px;flex-wrap:wrap}
+  .pic2{width:30px;height:30px;border-radius:7px;cursor:pointer;border:1px solid rgba(255,255,255,.2)}
+  .pic2:active{transform:scale(.9)}
+
+  @media (prefers-reduced-motion: reduce){*{transition-duration:.05s!important}}
+
+  /* ===== ECRAN DE BLOCARE (parolă master) ===== */
+  #ecran-lacat{
+    position:fixed;inset:0;z-index:9999;
+    background:var(--fundal);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:18px;padding:24px;text-align:center;
+    -webkit-user-select:none;user-select:none;
+  }
+  #ecran-lacat.ascuns{display:none}
+  #ecran-lacat .lac-astru{width:44px;height:44px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,var(--accent),#1c3f66 70%);
+    box-shadow:0 0 22px rgba(88,166,255,.45);margin-bottom:2px}
+  #ecran-lacat h1{font-size:1.15rem;font-weight:700;letter-spacing:.02em}
+  #ecran-lacat p{color:var(--text-stins);font-size:.85rem;max-width:320px;line-height:1.5}
+  #ecran-lacat .lac-camp{width:100%;max-width:280px;display:flex;flex-direction:column;gap:10px}
+  #ecran-lacat input{
+    width:100%;background:var(--panou);border:1px solid var(--linie-clar);
+    border-radius:10px;padding:13px 14px;color:var(--text);font-size:1rem;
+    font-family:var(--mono);text-align:center;letter-spacing:.08em;
+    -webkit-user-select:text;user-select:text;
+  }
+  #ecran-lacat input:focus{outline:none;border-color:var(--accent)}
+  #ecran-lacat button{
+    width:100%;max-width:280px;background:var(--accent);color:#0d1117;border:none;
+    border-radius:10px;padding:13px 14px;font-weight:700;font-size:.95rem;cursor:pointer;
+  }
+  #ecran-lacat button:active{opacity:.8}
+  #ecran-lacat button:disabled{opacity:.5}
+  #ecran-lacat .lac-eroare{color:var(--rosu);font-size:.82rem;min-height:1.2em}
+  #ecran-lacat .lac-nota{color:var(--text-stins);font-size:.72rem;max-width:280px;line-height:1.5}
+  #ecran-lacat .lac-anuleaza{
+    background:none;border:none;color:var(--text-stins);font-size:.85rem;
+    padding:6px;cursor:pointer;text-decoration:underline;max-width:280px;width:auto;
+  }
+</style>
+</head>
+<body>
+
+<div id="ecran-lacat">
+  <div class="lac-astru"></div>
+  <h1 id="lac-titlu">Logos</h1>
+  <p id="lac-text">Se încarcă...</p>
+  <div class="lac-camp">
+    <input id="lac-parola0" type="password" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Parola actuală" style="display:none">
+    <input id="lac-parola" type="password" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Parolă master">
+    <input id="lac-parola2" type="password" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Repetă parola" style="display:none">
+    <div class="lac-eroare" id="lac-eroare"></div>
+    <button id="lac-buton">Deblochează</button>
+    <button id="lac-anuleaza" class="lac-anuleaza" style="display:none">Anulează</button>
+  </div>
+  <p class="lac-nota" id="lac-nota"></p>
+</div>
+
+<div id="bara">
+  <div id="marca">
+    <span class="astru"><span class="arc"></span><span class="pct"></span></span>
+    <span class="nume">Log<b>OS</b></span>
+  </div>
+  <div id="comutator"></div>
+  <div id="temporizatoare"></div>
+</div>
+
+<div id="desktop">
+  <div id="salut-desktop"></div>
+  <div id="grila"></div>
+</div>
+
+<!-- aici trăiesc toate ferestrele deschise simultan -->
+<div id="ferestre"></div>
+
+<script>
+"use strict";
+
+
+
+
+
+
+
+/* ============================================================
+   LOGOS — nucleu, depozit, aplicații
+   Totul local. Fără server. Fără internet.
+   ============================================================ */
+
+/* ---------- CRIPTO: parola master → cheie de criptare (AES-GCM) ----------
+   Parola NU se salvează niciodată. Doar o "sare" (sare aleatoare) și un
+   "verificator" criptat rămân pe disc, ca să putem verifica o parolă
+   introdusă ulterior fără să știm parola în sine. */
+const Cripto = (()=>{
+  const CHEIE_LS='logos_lacat';           // {sare, verificator, iteratii}
+  const PREFIX='LZE1:';                    // marchează conținut criptat cu formatul curent
+  const ITERATII=310000;
+  let cheieCurenta=null;                   // CryptoKey ținută doar în memorie, în timpul sesiunii
+
+  function buf2b64(buf){ return btoa(String.fromCharCode(...new Uint8Array(buf))); }
+  function b642buf(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u.buffer; }
+
+  function areLacat(){ return !!localStorage.getItem(CHEIE_LS); }
+  function esteDeblocat(){ return !!cheieCurenta; }
+  function blocheaza(){ cheieCurenta=null; }
+
+  async function derivaCheie(parola, sareBuf, iteratii){
+    const enc=new TextEncoder();
+    const materialCheie=await crypto.subtle.importKey('raw', enc.encode(parola), {name:'PBKDF2'}, false, ['deriveKey']);
+    return crypto.subtle.deriveKey(
+      {name:'PBKDF2', salt:sareBuf, iterations:iteratii, hash:'SHA-256'},
+      materialCheie, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']
+    );
+  }
+
+  async function seteazaParolaNoua(parola){
+    const sare=crypto.getRandomValues(new Uint8Array(16));
+    const cheie=await derivaCheie(parola, sare, ITERATII);
+    const iv=crypto.getRandomValues(new Uint8Array(12));
+    const enc=new TextEncoder();
+    const cifrat=await crypto.subtle.encrypt({name:'AES-GCM', iv}, cheie, enc.encode('LOGOS_OK'));
+    const verificator=buf2b64(iv)+'.'+buf2b64(cifrat);
+    localStorage.setItem(CHEIE_LS, JSON.stringify({sare:buf2b64(sare), verificator, iteratii:ITERATII}));
+    cheieCurenta=cheie;
+  }
+
+  async function incearcaParola(parola){
+    const raw=localStorage.getItem(CHEIE_LS);
+    if(!raw) return false;
+    const {sare, verificator, iteratii} = JSON.parse(raw);
+    const cheie=await derivaCheie(parola, b642buf(sare), iteratii||ITERATII);
+    try{
+      const [ivB64, cifratB64]=verificator.split('.');
+      const text=await crypto.subtle.decrypt({name:'AES-GCM', iv:b642buf(ivB64)}, cheie, b642buf(cifratB64));
+      if(new TextDecoder().decode(text)!=='LOGOS_OK') return false;
+      cheieCurenta=cheie;
+      return true;
+    }catch(e){ return false; }
+  }
+
+  async function encripteaza(text){
+    if(!cheieCurenta || typeof text!=='string') return text;
+    const iv=crypto.getRandomValues(new Uint8Array(12));
+    const cifrat=await crypto.subtle.encrypt({name:'AES-GCM', iv}, cheieCurenta, new TextEncoder().encode(text));
+    return PREFIX+buf2b64(iv)+'.'+buf2b64(cifrat);
+  }
+
+  async function decripteaza(text){
+    if(typeof text!=='string' || !text.startsWith(PREFIX)) return text; // conținut vechi, necriptat — îl lăsăm așa (migrare fără pierderi)
+    if(!cheieCurenta) return '⚠ blocat';
+    try{
+      const [ivB64, cifratB64]=text.slice(PREFIX.length).split('.');
+      const clar=await crypto.subtle.decrypt({name:'AES-GCM', iv:b642buf(ivB64)}, cheieCurenta, b642buf(cifratB64));
+      return new TextDecoder().decode(clar);
+    }catch(e){ return '⚠ eroare la decriptare'; }
+  }
+
+  function esteCriptat(text){ return typeof text==='string' && text.startsWith(PREFIX); }
+
+  // verifică o parolă contra verificatorului salvat, FĂRĂ să schimbe sesiunea curentă
+  async function verificaParolaBrut(parola){
+    const raw=localStorage.getItem(CHEIE_LS);
+    if(!raw) return {ok:false};
+    const {sare, verificator, iteratii} = JSON.parse(raw);
+    const cheie=await derivaCheie(parola, b642buf(sare), iteratii||ITERATII);
+    try{
+      const [ivB64, cifratB64]=verificator.split('.');
+      const text=await crypto.subtle.decrypt({name:'AES-GCM', iv:b642buf(ivB64)}, cheie, b642buf(cifratB64));
+      return {ok:new TextDecoder().decode(text)==='LOGOS_OK', cheie};
+    }catch(e){ return {ok:false}; }
+  }
+
+  // schimbă parola master: verifică parola veche, decriptează tot cu ea,
+  // creează cheie nouă, recriptează și rescrie fiecare fișier
+  async function schimbaParola(parolaVeche, parolaNoua, alRaporteazaProgres){
+    if(!parolaVeche || parolaNoua.length<6) return {succes:false, motiv:'Parola nouă trebuie să aibă minim 6 caractere.'};
+    const verifVeche=await verificaParolaBrut(parolaVeche);
+    if(!verifVeche.ok) return {succes:false, motiv:'Parola actuală este greșită.'};
+
+    cheieCurenta=verifVeche.cheie; // cheia veche — necesară ca Depozit să poată decripta la citire
+    const toate=await Depozit.toateNefiltrate();  // citește tot, decriptat cu cheia veche
+
+    await seteazaParolaNoua(parolaNoua); // generează sare + cheie nouă, actualizează localStorage, cheieCurenta=nouă
+
+    let gata=0;
+    for(const f of toate){
+      await Depozit.scrie(f); // Depozit criptează automat cu cheieCurenta (deja cea nouă)
+      gata++;
+      if(alRaporteazaProgres) alRaporteazaProgres(gata+'/'+toate.length);
+    }
+    return {succes:true};
+  }
+
+  return {areLacat, esteDeblocat, blocheaza, seteazaParolaNoua, incearcaParola, encripteaza, decripteaza, schimbaParola, esteCriptat};
+})();
+
+/* ---------- ECRAN DE BLOCARE: cere parola master la pornire, la reluare, și la schimbarea parolei ---------- */
+const EcranLacat = (()=>{
+  const el=document.getElementById('ecran-lacat');
+  const titlu=document.getElementById('lac-titlu');
+  const text=document.getElementById('lac-text');
+  const p0=document.getElementById('lac-parola0');
+  const p1=document.getElementById('lac-parola');
+  const p2=document.getElementById('lac-parola2');
+  const eroare=document.getElementById('lac-eroare');
+  const buton=document.getElementById('lac-buton');
+  const anuleaza=document.getElementById('lac-anuleaza');
+  const nota=document.getElementById('lac-nota');
+
+  function arata(){ el.classList.remove('ascuns'); }
+  function ascunde(){ el.classList.add('ascuns'); }
+
+  // ține evidența ascultătorilor curenți, ca să-i scoatem înainte de a pune alții noi
+  // (fără asta, la fiecare (re)blocare s-ar aduna ascultători peste ascultători)
+  let manClick=null, manP0=null, manP1=null, manP2=null, manAnul=null;
+  function curataAscultatori(){
+    if(manClick) buton.removeEventListener('click', manClick);
+    if(manP0) p0.removeEventListener('keydown', manP0);
+    if(manP1) p1.removeEventListener('keydown', manP1);
+    if(manP2) p2.removeEventListener('keydown', manP2);
+    if(manAnul) anuleaza.removeEventListener('click', manAnul);
+    manClick=manP0=manP1=manP2=manAnul=null;
+  }
+
+  function pregatesteFormular(modSetup){
+    p0.value=''; p1.value=''; p2.value=''; eroare.textContent='';
+    p0.style.display='none';
+    p2.style.display = modSetup ? '' : 'none';
+    anuleaza.style.display='none';
+    if(modSetup){
+      titlu.textContent='Creează parola master';
+      text.textContent='Logos va cripta tot ce salvezi cu această parolă. Dacă o uiți, datele nu mai pot fi recuperate — nu există "resetare".';
+      buton.textContent='Creează și pornește';
+      nota.textContent='Minim 6 caractere. Ține-o minte — e singura cheie.';
+    } else {
+      titlu.textContent='Logos e blocat';
+      text.textContent='Introdu parola master pentru a debloca sistemul.';
+      buton.textContent='Deblochează';
+      nota.textContent='';
+    }
+  }
+
+  function asteaptaDeblocare(){
+    return new Promise((rezolva)=>{
+      curataAscultatori();
+      const modSetup=!Cripto.areLacat();
+      pregatesteFormular(modSetup);
+      arata();
+      setTimeout(()=>p1.focus(),300);
+
+      async function incearca(){
+        eroare.textContent='';
+        if(modSetup){
+          if(p1.value.length<6){ eroare.textContent='Parola trebuie să aibă minim 6 caractere.'; return; }
+          if(p1.value!==p2.value){ eroare.textContent='Parolele nu se potrivesc.'; return; }
+          buton.disabled=true; buton.textContent='Se pregătește...';
+          await Cripto.seteazaParolaNoua(p1.value);
+          curataAscultatori(); ascunde(); rezolva();
+        } else {
+          if(!p1.value){ eroare.textContent='Introdu parola.'; return; }
+          buton.disabled=true; buton.textContent='Se verifică...';
+          const ok=await Cripto.incearcaParola(p1.value);
+          buton.disabled=false; buton.textContent='Deblochează';
+          if(!ok){ eroare.textContent='Parolă greșită.'; p1.value=''; p1.focus(); return; }
+          curataAscultatori(); ascunde(); rezolva();
+        }
+      }
+      manClick=incearca; manP2=e=>{ if(e.key==='Enter') incearca(); };
+      manP1=e=>{ if(e.key==='Enter'){ if(p2.style.display==='none') incearca(); else p2.focus(); } };
+      buton.addEventListener('click', manClick);
+      p1.addEventListener('keydown', manP1);
+      p2.addEventListener('keydown', manP2);
+    });
+  }
+
+  // reblocare (fără parolă nouă): doar cere parola din nou, nu recreează sistemul
+  function reblocheaza(){
+    Cripto.blocheaza();
+    return asteaptaDeblocare();
+  }
+
+  // schimbarea parolei master: cere parola veche + una nouă (de două ori), apoi recriptează tot
+  function schimbaParolaFlux(){
+    return new Promise((rezolva)=>{
+      curataAscultatori();
+      p0.value=''; p1.value=''; p2.value=''; eroare.textContent='';
+      p0.style.display=''; p1.style.display=''; p2.style.display='';
+      p0.placeholder='Parola actuală';
+      p1.placeholder='Parola nouă';
+      p2.placeholder='Repetă parola nouă';
+      titlu.textContent='Schimbă parola master';
+      text.textContent='Toate fișierele vor fi recriptate automat cu noua parolă.';
+      buton.textContent='Schimbă parola';
+      nota.textContent='';
+      anuleaza.style.display='';
+      arata();
+      setTimeout(()=>p0.focus(),300);
+
+      async function incearca(){
+        eroare.textContent='';
+        if(!p0.value){ eroare.textContent='Introdu parola actuală.'; return; }
+        if(p1.value.length<6){ eroare.textContent='Parola nouă trebuie să aibă minim 6 caractere.'; return; }
+        if(p1.value!==p2.value){ eroare.textContent='Parolele noi nu se potrivesc.'; return; }
+        buton.disabled=true; buton.textContent='Se recriptează...';
+        const rez=await Cripto.schimbaParola(p0.value, p1.value, progres=>{ text.textContent='Se recriptează fișierele... '+progres; });
+        buton.disabled=false; buton.textContent='Schimbă parola';
+        if(!rez.succes){ eroare.textContent=rez.motiv; return; }
+        curataAscultatori();
+        p0.placeholder='Parola actuală'; // resetăm placeholder-ele pentru viitoarele deblocări
+        ascunde(); rezolva({succes:true});
+      }
+      function laAnulare(){ curataAscultatori(); ascunde(); rezolva({succes:false, anulat:true}); }
+
+      manClick=incearca; manAnul=laAnulare;
+      manP0=e=>{ if(e.key==='Enter') p1.focus(); };
+      manP1=e=>{ if(e.key==='Enter') p2.focus(); };
+      manP2=e=>{ if(e.key==='Enter') incearca(); };
+      buton.addEventListener('click', manClick);
+      anuleaza.addEventListener('click', manAnul);
+      p0.addEventListener('keydown', manP0);
+      p1.addEventListener('keydown', manP1);
+      p2.addEventListener('keydown', manP2);
+    });
+  }
+
+  return {asteaptaDeblocare, reblocheaza, schimbaParolaFlux, arata};
+})();
+
+/* ---------- DEPOZIT: fișierele tale, persistente (IndexedDB) ----------
+   Un "disc" simplu: fiecare fișier are o cale, un tip și conținut.
+   Câmpul `continut` e criptat transparent cu cheia master (AES-GCM). */
+const Depozit = (()=>{
+  const NUME_BD='logos_depozit', MAGAZIE='fisiere';
+  let bd=null;
+  function deschide(){
+    return new Promise((rez,resp)=>{
+      const c=indexedDB.open(NUME_BD,1);
+      c.onupgradeneeded=e=>{
+        const d=e.target.result;
+        if(!d.objectStoreNames.contains(MAGAZIE))
+          d.createObjectStore(MAGAZIE,{keyPath:'cale'});
+      };
+      c.onsuccess=e=>{bd=e.target.result;rez();};
+      c.onerror=e=>resp(e.target.error);
+    });
+  }
+  function tx(mod){return bd.transaction(MAGAZIE,mod).objectStore(MAGAZIE);}
+  // `continut` e criptat înainte să atingă discul, și decriptat la citire — transparent pentru restul aplicației
+  function scrie(f){
+    return new Promise((rez,resp)=>{
+      (async()=>{
+        try{
+          const deSalvat=(f && typeof f.continut==='string') ? {...f, continut:await Cripto.encripteaza(f.continut)} : f;
+          const r=tx('readwrite').put(deSalvat);
+          r.onsuccess=()=>rez(f); r.onerror=()=>resp(r.error);
+        }catch(e){ resp(e); }
+      })();
+    });
+  }
+  function citeste(cale){
+    return new Promise((rez)=>{
+      const r=tx('readonly').get(cale);
+      r.onsuccess=()=>{
+        (async()=>{
+          const rec=r.result||null;
+          if(rec && typeof rec.continut==='string') rec.continut=await Cripto.decripteaza(rec.continut);
+          rez(rec);
+        })();
+      };
+      r.onerror=()=>rez(null);
+    });
+  }
+  function sterge(cale){return new Promise((rez)=>{const r=tx('readwrite').delete(cale);r.onsuccess=()=>rez(true);r.onerror=()=>rez(false);});}
+  function toate(){
+    return new Promise((rez)=>{
+      const r=tx('readonly').getAll();
+      r.onsuccess=()=>{
+        (async()=>{
+          const lista=(r.result||[]).filter(f=>!f.ascuns);
+          for(const f of lista){ if(typeof f.continut==='string') f.continut=await Cripto.decripteaza(f.continut); }
+          rez(lista);
+        })();
+      };
+      r.onerror=()=>rez([]);
+    });
+  }
+  // ca toate(), dar include și fișierele ascunse (ex: starea sistemului) — folosit la schimbarea parolei master
+  function toateNefiltrate(){
+    return new Promise((rez)=>{
+      const r=tx('readonly').getAll();
+      r.onsuccess=()=>{
+        (async()=>{
+          const lista=r.result||[];
+          for(const f of lista){ if(typeof f.continut==='string') f.continut=await Cripto.decripteaza(f.continut); }
+          rez(lista);
+        })();
+      };
+      r.onerror=()=>rez([]);
+    });
+  }
+  // ca toateNefiltrate(), dar FĂRĂ decriptare — pentru diagnostic (Doctor)
+  function bruteTot(){
+    return new Promise((rez)=>{
+      const r=tx('readonly').getAll();
+      r.onsuccess=()=>rez(r.result||[]);
+      r.onerror=()=>rez([]);
+    });
+  }
+  // simplifică un nume: fără diacritice, litere mici — ca să-l găsim ușor
+  function simplu(s){return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
+  // găsește un fișier după nume, iertând diacritice și majuscule
+  async function gaseste(nume){
+    const t=await toate();
+    const tinta=simplu(nume);
+    return t.find(f=>simplu(f.cale)===tinta) || null;
+  }
+  return {deschide,scrie,citeste,sterge,toate,toateNefiltrate,bruteTot,gaseste,simplu};
+})();
+
+/* ---------- volumul unui fișier (în octeți → KB/MB) ---------- */
+function volumFis(continut){
+  // octeți reali (UTF-8), aproximați prin Blob când există
+  let octeti;
+  try{ octeti = new Blob([continut||'']).size; }
+  catch(e){ octeti = (continut||'').length; }
+  if(octeti < 1024) return octeti+' B';
+  if(octeti < 1024*1024) return (octeti/1024).toFixed(1)+' KB';
+  return (octeti/(1024*1024)).toFixed(2)+' MB';
+}
+
+/* ---------- MEMORIA: starea sistemului, persistentă ----------
+   Logos își amintește ce era deschis și unde am rămas.
+   Folosim o cheie simplă în același IndexedDB, prin localStorage-like
+   peste Depozit (un fișier ascuns de stare). */
+const Memorie = (()=>{
+  const CHEIE='__stare_logos';
+  let stare={ ultimaApp:null, ctx:null };
+  async function incarca(){
+    try{
+      const f=await Depozit.citeste(CHEIE);
+      if(f && f.continut) stare=JSON.parse(f.continut);
+    }catch(e){}
+    return stare;
+  }
+  async function salveaza(noua){
+    stare={...stare,...noua};
+    try{
+      await Depozit.scrie({cale:CHEIE,tip:'stare',continut:JSON.stringify(stare),ascuns:true});
+    }catch(e){}
+  }
+  function ia(){ return stare; }
+  return {incarca,salveaza,ia};
+})();
+
+/* ---------- NUCLEUL: pornește lumea, găzduiește aplicații ---------- */
+const Nucleu = (()=>{
+  const aplicatii={};      // contractul: fiecare app se înregistrează aici
+  function inregistreaza(app){ aplicatii[app.id]=app; }
+  function lista(){ return Object.values(aplicatii); }
+  function lanseaza(id, ctx={}){
+    const app=aplicatii[id];
+    if(!app){ console.warn('Aplicație necunoscută:',id); return; }
+    deschideFereastra(app.nume, app.montare, ctx, {appId:id, iconita:app.iconita});
+    Memorie.salveaza({ultimaApp:id, ctx:ctx&&ctx.fisier?{fisier:ctx.fisier}:null});
+  }
+  return {inregistreaza,lista,lanseaza};
+})();
+
+/* ---------- GESTIONARUL DE FERESTRE: mai multe vii deodată ----------
+   Fiecare fereastră deschisă rămâne în viață (în DOM). Doar una e
+   vizibilă. Comutatorul (bara) le arată pe toate și le aduce în față. */
+const stratFerestre=document.getElementById('ferestre');
+const comutator=document.getElementById('comutator');
+
+// fiecare intrare: {id, nume, iconita, el, corp, curatenie}
+const ferestreDeschise=[];
+let activaId=null;
+
+function randeazaComutator(){
+  comutator.innerHTML='';
+  if(!ferestreDeschise.length){ return; }
+  for(const f of ferestreDeschise){
+    const fila=document.createElement('div');
+    fila.className='fila'+(f.id===activaId?' activa':'');
+    fila.innerHTML=`<span class="ft">${(f.nume||'').replace(/^[▢▷•♪⌂▤]\s*/,'')}</span><span class="fx">✕</span>`;
+    fila.querySelector('.fx').addEventListener('click',e=>{ e.stopPropagation(); inchideFereastraId(f.id); });
+    fila.addEventListener('click',()=>aratoFereastra(f.id));
+    comutator.appendChild(fila);
+  }
+}
+
+function aratoFereastra(id){
+  document.body.classList.remove('acasa');
+  const birou=document.body.classList.contains('birou');
+  for(const f of ferestreDeschise){
+    if(birou){
+      // în mod birou toate rămân vizibile alăturat; doar marcăm activa
+      f.el.classList.add('deschis'); f.el.classList.remove('fundal');
+    } else {
+      if(f.id===id){ f.el.classList.add('deschis'); f.el.classList.remove('fundal'); }
+      else { f.el.classList.remove('deschis'); f.el.classList.add('fundal'); }
+    }
+  }
+  activaId=id;
+  // marchează vizual fereastra activă (util în mod birou)
+  for(const f of ferestreDeschise){ f.el.classList.toggle('activa', f.id===id); }
+  randeazaComutator();
+  if(birou) asazaManere();
+  const f=ferestreDeschise.find(x=>x.id===id);
+  if(f) Memorie.salveaza({ultimaApp:f.appId, ctx:f.ctx||null, deschise:ferestreDeschise.map(x=>x.appId)});
+}
+
+// deschide o aplicație. Dacă e deja deschisă, o aduce în față (nu o dublează).
+function deschideFereastra(nume, montare, ctx, meta={}){
+  const appId=meta.appId||nume;
+  // dacă aplicația e deja deschisă, doar comută la ea
+  const exist=ferestreDeschise.find(f=>f.appId===appId);
+  if(exist){ aratoFereastra(exist.id); return; }
+
+  const id='f'+Date.now()+Math.random().toString(36).slice(2,6);
+  const el=document.createElement('div');
+  el.className='fereastra';
+  el.innerHTML=`<div class="cap-fereastra"><span class="titlu">${(nume||'').replace(/^[▢▷•♪⌂▤]\s*/,'')}</span><span class="x">✕</span></div><div class="corp-fereastra"></div>`;
+  stratFerestre.appendChild(el);
+  // ✕ închide fereastra. Pe Safari/iOS, „click" pe un <span> nu se declanșează
+  // de fiecare dată; „pointerup" e sigur pe toate.
+  const butonX = el.querySelector('.x');
+  butonX.addEventListener('pointerup',ev=>{ ev.stopPropagation(); ev.preventDefault(); inchideFereastraId(id); });
+  butonX.addEventListener('click',ev=>{ ev.stopPropagation(); ev.preventDefault(); });
+  el.addEventListener('pointerdown',()=>{ if(document.body.classList.contains('birou')){ activaId=id; randeazaComutator(); } });
+  const corp=el.querySelector('.corp-fereastra');
+
+  const curatenie = montare(corp, ctx||{}) || null;
+  const intrare={id, appId, nume, iconita:meta.iconita, ctx, el, corp, curatenie};
+  ferestreDeschise.push(intrare);
+  // fereastră nouă în mod birou → împarte spațiul din nou, egal
+  if(document.body.classList.contains('birou')) reseteazaLatimi();
+  // mică întârziere ca tranziția să se vadă
+  requestAnimationFrame(()=>aratoFereastra(id));
+}
+
+function inchideFereastraId(id){
+  const i=ferestreDeschise.findIndex(f=>f.id===id);
+  if(i===-1) return;
+  const f=ferestreDeschise[i];
+  if(f.curatenie){ try{f.curatenie();}catch(e){} }
+  f.el.classList.remove('deschis');
+  const birou=document.body.classList.contains('birou');
+  // în mod birou scoatem fereastra imediat (altfel golul rămâne 300ms)
+  if(birou){ try{f.el.remove();}catch(e){} }
+  else { setTimeout(()=>{ try{f.el.remove();}catch(e){} },300); }
+  ferestreDeschise.splice(i,1);
+  // arată următoarea, dacă mai e
+  if(ferestreDeschise.length){
+    aratoFereastra(ferestreDeschise[ferestreDeschise.length-1].id);
+  } else {
+    activaId=null;
+    randeazaComutator();
+    Memorie.salveaza({ultimaApp:null, ctx:null, deschise:[]});
+  }
+  if(birou){ reseteazaLatimi(); asazaManere(); }
+}
+
+// ---- TEMPORIZATOARE: numărătoare inversă vizibilă în bara de sus ----
+const Temporizatoare = (function(){
+  const lista=[];   // {id, text, sfarsit, el}
+  let ceasTic=null;
+
+  function format(ms){
+    if(ms<0) ms=0;
+    const s=Math.round(ms/1000);
+    const h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sec=s%60;
+    if(h>0) return h+':'+String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');
+    return m+':'+String(sec).padStart(2,'0');
+  }
+  function randeaza(){
+    const gazda=document.getElementById('temporizatoare');
+    if(!gazda) return;
+    gazda.innerHTML='';
+    for(const t of lista){
+      const ramas=t.sfarsit-Date.now();
+      const el=document.createElement('div');
+      el.className='temp-chip'+(ramas<=60000?' aproape':'');
+      el.innerHTML=`<span class="temp-ceas">⏱ ${format(ramas)}</span>`+
+                   (t.text?`<span class="temp-txt">${t.text}</span>`:'')+
+                   `<span class="temp-x" title="anulează">✕</span>`;
+      el.querySelector('.temp-x').addEventListener('click',e=>{ e.stopPropagation(); anuleaza(t.id); });
+      gazda.appendChild(el);
+    }
+  }
+  function tic(){
+    const acum=Date.now();
+    for(let i=lista.length-1;i>=0;i--){
+      if(lista[i].sfarsit<=acum){
+        const t=lista[i];
+        lista.splice(i,1);
+        sunaSiAnunta(t.text);
+      }
+    }
+    randeaza();
+    if(!lista.length && ceasTic){ clearInterval(ceasTic); ceasTic=null; }
+  }
+  function sunaSiAnunta(text){
+    try{ if(navigator.vibrate) navigator.vibrate([160,80,160,80,260]); }catch(e){}
+    try{
+      const ctxA=new (window.AudioContext||window.webkitAudioContext)();
+      [880,1100,880].forEach((f,i)=>{
+        const o=ctxA.createOscillator(), g=ctxA.createGain();
+        o.connect(g); g.connect(ctxA.destination);
+        o.frequency.value=f; g.gain.value=0.07;
+        o.start(ctxA.currentTime+i*0.22);
+        o.stop(ctxA.currentTime+i*0.22+0.18);
+      });
+      setTimeout(()=>ctxA.close(),1200);
+    }catch(e){}
+    setTimeout(()=>alert('⏰  '+(text||'Timpul a expirat!')),120);
+  }
+  function porneste(minute, text){
+    const id='t'+Date.now()+Math.random().toString(36).slice(2,5);
+    lista.push({id, text:text||'', sfarsit: Date.now()+minute*60000});
+    randeaza();
+    if(!ceasTic) ceasTic=setInterval(tic,1000);
+    return id;
+  }
+  function anuleaza(id){
+    const i=lista.findIndex(t=>t.id===id);
+    if(i>-1){ lista.splice(i,1); randeaza(); }
+    if(!lista.length && ceasTic){ clearInterval(ceasTic); ceasTic=null; }
+  }
+  function cate(){ return lista.length; }
+  return {porneste, anuleaza, cate, randeaza};
+})();
+
+// ---- MENIU START (ca la Windows/Linux): panou mic sub LogOS ----
+function comutaMeniuStart(){
+  const vechi=document.getElementById('meniu-start');
+  if(vechi){ vechi.remove(); return; }
+  deschideMeniuStart();
+}
+async function deschideMeniuStart(){
+  const m=document.createElement('div');
+  m.id='meniu-start';
+  m.addEventListener('click',e=>e.stopPropagation());
+
+  // aplicațiile înregistrate
+  let apps='';
+  for(const app of Nucleu.lista()){
+    apps+=`<div class="ms-r" data-app="${app.id}">
+      <span class="ms-ic">${app.iconita}</span><span>${app.nume}</span></div>`;
+  }
+
+  // fișiere recente (ultimele 5 atinse)
+  let recente='';
+  try{
+    const toate=(await Depozit.toate())
+      .filter(f=>f.tip!=='folder'&&f.tip!=='html'&&f.tip!=='backup')
+      .sort((a,b)=>(b.creat||0)-(a.creat||0)).slice(0,5);
+    for(const f of toate){
+      recente+=`<div class="ms-r mic" data-fis="${f.cale}">
+        <span class="ms-ic">▢</span><span>${f.cale}</span></div>`;
+    }
+  }catch(e){}
+
+  m.innerHTML=`
+    <div class="ms-sec">Aplicații</div>
+    ${apps}
+    ${recente?'<div class="ms-linie"></div><div class="ms-sec">Recente</div>'+recente:''}
+    <div class="ms-linie"></div>
+    <div class="ms-r" data-act="nou"><span class="ms-ic">＋</span><span>Fișier nou</span><span class="ms-scurt">Ctrl+N</span></div>
+    <div class="ms-r" data-act="acasa"><span class="ms-ic">⌂</span><span>Ecranul de acasă</span><span class="ms-scurt">Esc</span></div>
+    ${ferestreDeschise.length?'<div class="ms-r rosu" data-act="inchide-tot"><span class="ms-ic">✕</span><span>Închide toate ferestrele</span></div>':''}
+    <div class="ms-linie"></div>
+    <div class="ms-r" data-act="blocheaza"><span class="ms-ic">🔒</span><span>Blochează acum</span></div>
+    <div class="ms-r" data-act="schimba-parola"><span class="ms-ic">🔑</span><span>Schimbă parola master</span></div>
+  `;
+  document.body.appendChild(m);
+
+  // așază-l sub butonul LogOS
+  const marca=document.getElementById('marca').getBoundingClientRect();
+  m.style.left = Math.max(8, marca.left)+'px';
+  m.style.top  = (marca.bottom+6)+'px';
+
+  m.querySelectorAll('.ms-r').forEach(r=>{
+    r.addEventListener('click',async()=>{
+      const app=r.dataset.app, fis=r.dataset.fis, act=r.dataset.act;
+      m.remove();
+      if(app){ Nucleu.lanseaza(app); }
+      else if(fis){ const f=await Depozit.gaseste(fis); if(f) deschideCuApp(f); }
+      else if(act==='acasa'){ mergiAcasa(); }
+      else if(act==='nou'){ fisierNouGlobal(); }
+      else if(act==='inchide-tot'){ [...ferestreDeschise].forEach(f=>inchideFereastraId(f.id)); }
+      else if(act==='blocheaza'){ window.reblocheazaAcum(); }
+      else if(act==='schimba-parola'){
+        const rez=await EcranLacat.schimbaParolaFlux();
+        if(rez && rez.succes) alert('Parola master a fost schimbată. Toate fișierele au fost recriptate.');
+      }
+    });
+  });
+
+  // clic în afară sau Esc → închide
+  setTimeout(()=>{
+    const inchide=ev=>{
+      if(!m.contains(ev.target)){ m.remove(); document.removeEventListener('click',inchide); }
+    };
+    document.addEventListener('click',inchide);
+  },10);
+}
+// fișier nou (folosit și de Ctrl+N și de meniu)
+async function fisierNouGlobal(){
+  let nume=prompt('Numele fișierului nou (ex: note.md):');
+  if(!nume) return; nume=nume.trim();
+  if(!nume.includes('.')) nume+='.md';
+  if(await Depozit.gaseste(nume)){ alert('Există deja.'); return; }
+  const tip=nume.endsWith('.md')?'md':nume.endsWith('.html')?'html':'text';
+  const f={cale:nume,tip,continut:'',creat:Date.now()};
+  await Depozit.scrie(f);
+  deschideCuApp(f);
+}
+
+// „Acasă": ascunde toate ferestrele, dar le ține vii
+function mergiAcasa(){
+  for(const f of ferestreDeschise){ f.el.classList.remove('deschis'); f.el.classList.add('fundal'); }
+  activaId=null;
+  // în mod birou, ascunde tot stratul de ferestre ca să se vadă ecranul de Acasă
+  document.body.classList.add('acasa');
+  randeazaComutator();
+}
+// compatibilitate cu codul vechi
+function inchideFereastra(){ mergiAcasa(); }
+
+/* ============================================================
+   CONTRACTUL unei aplicații:
+   { id, nume, iconita, montare(corp, ctx) }
+   - montare primește locul gol și îl umple. Opțional întoarce
+     o funcție de curățenie (oprește timere etc.)
+   ============================================================ */
+
+/* ---------- mini-Markdown pentru cititor ---------- */
+function md2html(md){
+  const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return md.trim().split('\n').map(l=>{
+    let t=l.trim();
+    if(t.startsWith('## '))return '<h2>'+esc(t.slice(3))+'</h2>';
+    if(t.startsWith('# '))return '<h1>'+esc(t.slice(2))+'</h1>';
+    if(t==='')return '';
+    return '<p>'+esc(t).replace(/`(.+?)`/g,'<code>$1</code>')+'</p>';
+  }).join('');
+}
+
+/* ===================== APLICAȚIA: FIȘIERE ===================== */
+Nucleu.inregistreaza({
+  id:'fisiere', nume:'Fișiere', iconita:'▤',
+  montare(corp){
+    const root=document.createElement('div');
+    root.className='fisiere';
+    corp.appendChild(root);
+    let caleCurenta='';   // '' = acasă; 'Jurnal/' = în folderul Jurnal
+    // fără meniul nativ Android (căutare pe web) la apăsare lungă
+    root.addEventListener('contextmenu',e=>e.preventDefault());
+    root._rerandeaza=()=>randeaza();   // ca să reacționeze la schimbarea modului
+    root._calea=()=>caleCurenta;       // unde suntem acum (pentru drop din sistem)
+    randeaza();
+
+    // ---- apăsare lungă (touch) SAU clic-dreapta (laptop) ----
+    function apasareLunga(el, fn){
+      let t=null,x0=0,y0=0,eDeget=false,amDeschisMeniu=false;
+      el.style.webkitTouchCallout='none';
+      el.addEventListener('pointerdown',e=>{
+        if(e.pointerType==='mouse' && e.button!==0) return;
+        eDeget = (e.pointerType!=='mouse');
+        amDeschisMeniu=false;
+        x0=e.clientX;y0=e.clientY;
+        t=setTimeout(()=>{
+          t=null;
+          amDeschisMeniu=true;
+          try{ if(navigator.vibrate) navigator.vibrate(18); }catch(_){}
+          fn(e);
+        },520);
+      });
+      const gata=()=>{if(t){clearTimeout(t);t=null;}};
+      el.addEventListener('pointerup',gata);
+      el.addEventListener('pointercancel',gata);
+      el.addEventListener('pointermove',e=>{
+        const prag = eDeget ? 22 : 10;
+        if(Math.abs(e.clientX-x0)>prag||Math.abs(e.clientY-y0)>prag) gata();
+      });
+      // pe iOS/Android apăsarea lungă cheamă meniul browserului — îl oprim,
+      // dar NU oprim clicul obișnuit (altfel nimic nu mai răspunde la atingere)
+      el.addEventListener('contextmenu',e=>{
+        e.preventDefault();
+        if(!eDeget){ e.stopPropagation(); fn(e); }   // pe mouse: clic-dreapta = meniul nostru
+      });
+      // dacă am deschis meniul prin apăsare lungă, înghițim clicul care urmează
+      el.addEventListener('click',e=>{
+        if(amDeschisMeniu){ e.stopPropagation(); e.preventDefault(); amDeschisMeniu=false; }
+      },true);
+    }
+
+    // ---- meniu de jos ----
+    function meniu(titlu, optiuni){
+      // curăță orice meniu rămas (pe ecran, oriunde ar fi)
+      document.querySelectorAll('.fm-meniu').forEach(x=>x.remove());
+      const m=document.createElement('div'); m.className='fm-meniu';
+      const c=document.createElement('div'); c.className='fm-meniu-c';
+      if(titlu){const h=document.createElement('div');h.className='fm-meniu-t';h.textContent=titlu;c.appendChild(h);}
+      for(const o of optiuni){
+        const b=document.createElement('div'); b.className='fm-meniu-b'+(o.rosu?' rosu':'');
+        b.textContent=o.text;
+        // închidem meniul ÎNTÂI, apoi rulăm acțiunea (care poate deschide alt meniu)
+        b.addEventListener('click',ev=>{
+          ev.stopPropagation();
+          m.remove();
+          if(o.fn) setTimeout(()=>o.fn(),0);
+        });
+        c.appendChild(b);
+      }
+      const x=document.createElement('div'); x.className='fm-meniu-b anuleaza'; x.textContent='Anulează';
+      x.addEventListener('click',ev=>{ev.stopPropagation(); m.remove();});
+      c.appendChild(x); m.appendChild(c);
+      m.addEventListener('click',e=>{if(e.target===m)m.remove();});
+      document.body.appendChild(m);   // pe ecran, nu în fereastră
+    }
+
+    async function randeaza(){
+      const toate=await Depozit.toate();
+      root.querySelectorAll('.fm-bara,.fm-corp,.gol').forEach(x=>x.remove());
+      document.querySelectorAll('.fm-meniu').forEach(x=>x.remove());
+
+      const bara=document.createElement('div'); bara.className='fm-bara';
+      if(caleCurenta){
+        const inapoi=document.createElement('span'); inapoi.className='fm-inapoi'; inapoi.textContent='← înapoi';
+        inapoi.addEventListener('click',()=>{caleCurenta='';randeaza();});
+        // tragi un fișier pe „înapoi" → îl scoți din folder, în rădăcină
+        inapoi.addEventListener('dragover',e=>{
+          if(!window.__caleTrasa) return;
+          e.preventDefault(); e.stopPropagation(); inapoi.classList.add('tinta');
+        });
+        inapoi.addEventListener('dragenter',e=>{
+          if(!window.__caleTrasa) return;
+          e.preventDefault(); inapoi.classList.add('tinta');
+        });
+        inapoi.addEventListener('dragleave',()=>inapoi.classList.remove('tinta'));
+        inapoi.addEventListener('drop',async e=>{
+          e.preventDefault(); e.stopPropagation();
+          inapoi.classList.remove('tinta');
+          let cale='';
+          try{ cale=e.dataTransfer.getData('text/logos-fisier'); }catch(_){}
+          if(!cale) cale = window.__caleTrasa || '';
+          if(!cale) return;
+          const f=await Depozit.gaseste(cale);
+          if(f) await mutaIn(f, '');
+        });
+        bara.appendChild(inapoi);
+      }
+      const drum=document.createElement('span'); drum.className='fm-drum';
+      drum.textContent='/acasă'+(caleCurenta?('/'+caleCurenta.replace(/\/$/,'')):'');
+      bara.appendChild(drum);
+      root.appendChild(bara);
+
+      const foldere=new Set();
+      for(const f of toate){
+        if(f.tip==='folder') foldere.add(f.cale.replace(/\/$/,'')+'/');
+        else if(f.cale.includes('/')) foldere.add(f.cale.split('/')[0]+'/');
+      }
+      const eDoc=x=>x.tip!=='folder'&&x.tip!=='html'&&x.tip!=='backup';
+
+      // corp: grila de fișiere (fără panou lateral — fura spațiu în ferestre înguste)
+      const corpFm=document.createElement('div'); corpFm.className='fm-corp';
+      root.appendChild(corpFm);
+
+      const grila=document.createElement('div'); grila.className='fm-grila';
+      corpFm.appendChild(grila);
+      apasareLunga(grila, e=>{
+        if(e.target.closest('.fm-item')) return;
+        meniu('Creează aici', [
+          {text:'📁  Folder nou', fn:folderNou},
+          {text:'▢  Fișier nou', fn:fisierNou},
+        ]);
+      });
+      let gol=true;
+
+      if(!caleCurenta){
+        for(const fol of [...foldere].sort()){
+          gol=false;
+          const nr=toate.filter(x=>eDoc(x)&&x.cale.startsWith(fol)).length;
+          const el=document.createElement('div'); el.className='fm-item';
+          const rec=toate.find(x=>x.tip==='folder'&&x.cale===fol);
+          el.innerHTML=`<div class="fm-ic-folder">${rec&&rec.parola?'<span class="fm-lacat">🔒</span>':''}</div><div class="fm-nume">${fol.replace(/\/$/,'')}</div><div class="fm-meta">${nr} fișier(e)</div>`;
+          el.addEventListener('click',()=>intraInFolder(fol));
+          apasareLunga(el,()=>meniuFolder(fol));
+          // ---- primește fișiere trase peste el ----
+          el.addEventListener('dragover',e=>{
+            if(!window.__caleTrasa) return;
+            e.preventDefault(); e.stopPropagation();
+            e.dataTransfer.dropEffect='move';
+            el.classList.add('tinta');
+          });
+          el.addEventListener('dragenter',e=>{
+            if(!window.__caleTrasa) return;
+            e.preventDefault(); el.classList.add('tinta');
+          });
+          el.addEventListener('dragleave',()=>el.classList.remove('tinta'));
+          el.addEventListener('drop',async e=>{
+            e.preventDefault(); e.stopPropagation();
+            el.classList.remove('tinta');
+            let cale='';
+            try{ cale=e.dataTransfer.getData('text/logos-fisier'); }catch(_){}
+            if(!cale) cale = window.__caleTrasa || '';
+            if(!cale) return;
+            const f=await Depozit.gaseste(cale);
+            if(f) await mutaIn(f, fol);
+          });
+          grila.appendChild(el);
+        }
+        const rad=toate.filter(x=>eDoc(x)&&!x.cale.includes('/'));
+        rad.sort((a,b)=>a.cale.localeCompare(b.cale));
+        for(const f of rad){gol=false;grila.appendChild(itemFisier(f,f.cale));}
+      } else {
+        const din=toate.filter(x=>eDoc(x)&&x.cale.startsWith(caleCurenta));
+        din.sort((a,b)=>a.cale.localeCompare(b.cale));
+        for(const f of din){gol=false;grila.appendChild(itemFisier(f,f.cale.slice(caleCurenta.length)));}
+      }
+
+      if(gol || (!grila.children.length)){
+        const g=document.createElement('div'); g.className='gol';
+        g.innerHTML=caleCurenta?'Folderul e gol.\nȚine apăsat pe gol ca să creezi ceva.':'Niciun fișier aici.\nȚine apăsat pe gol (sau clic-dreapta) ca să creezi.';
+        grila.appendChild(g);
+      }
+    }
+
+    function itemFisier(f, numeAfisat){
+      const ext=f.cale.includes('.')?('.'+f.cale.split('.').pop().toLowerCase().slice(0,4)):'';
+      const el=document.createElement('div'); el.className='fm-item';
+      el.innerHTML=`<div class="fm-ic-fisier">${f.parola?'<span class="fm-lacat">🔒</span>':''}<span class="fm-ext">${ext}</span></div>
+        <div class="fm-nume">${numeAfisat}</div><div class="fm-meta">${volumFis(f.continut)}</div>`;
+      el.addEventListener('click',()=>deschideCuApp(f));
+      apasareLunga(el,()=>meniuFisier(f));
+      // ---- tragere: DOAR cu mouse. Pe atingere, „draggable" fură apăsarea lungă. ----
+      if(areMouse()){
+        el.draggable=true;
+        el.addEventListener('dragstart',e=>{
+          e.dataTransfer.setData('text/logos-fisier', f.cale);
+          e.dataTransfer.setData('text/plain', f.cale);
+          e.dataTransfer.effectAllowed='all';
+          window.__caleTrasa = f.cale;
+          el.classList.add('se-trage');
+          document.body.classList.add('trag-fisier');
+        });
+        el.addEventListener('dragend',()=>{
+          window.__caleTrasa = null;
+          el.classList.remove('se-trage');
+          document.body.classList.remove('trag-fisier');
+          document.querySelectorAll('.tinta,.term-tinta').forEach(x=>x.classList.remove('tinta','term-tinta'));
+        });
+      }
+      return el;
+    }
+
+    async function intraInFolder(fol){
+      const rec=(await Depozit.toate()).find(x=>x.tip==='folder'&&x.cale===fol);
+      if(rec&&rec.parola){
+        const p=prompt('Parola pentru '+fol.replace(/\/$/,'')+':');
+        if(p===null) return;
+        if(p!==rec.parola){ alert('Parolă greșită.'); return; }
+      }
+      caleCurenta=fol; randeaza();
+    }
+
+    function meniuFisier(f){
+      meniu(f.cale, [
+        {text:'Deschide', fn:()=>deschideCuApp(f)},
+        {text:'Redenumește', fn:()=>redenumesteFisier(f)},
+        {text:'Mută în folder…', fn:()=>alegeMutare(f)},
+        {text:f.parola?'Scoate parola':'Pune parolă', fn:()=>paroleaza(f)},
+        {text:'Șterge', rosu:true, fn:async()=>{
+          if(!confirm('Ștergi „'+f.cale+'"?')) return;
+          await Depozit.sterge(f.cale); randeaza();
+        }},
+      ]);
+    }
+    async function redenumesteFisier(f){
+      if(f.parola){
+        const v=prompt('Parola pentru '+f.cale+':');
+        if(v===null) return;
+        if(v!==f.parola){ alert('Parolă greșită.'); return; }
+      }
+      const baza=f.cale.split('/').pop();
+      const folder=f.cale.includes('/')?f.cale.slice(0,f.cale.lastIndexOf('/')+1):'';
+      let nume=prompt('Nume nou:', baza);
+      if(!nume) return; nume=nume.trim();
+      if(!nume || nume===baza) return;
+      if(!nume.includes('.') && baza.includes('.')) nume+='.'+baza.split('.').pop();
+      const nou=folder+nume;
+      if(await Depozit.gaseste(nou)){ alert('Există deja un fișier cu numele ăsta.'); return; }
+      const v=f.cale; await Depozit.sterge(v); f.cale=nou; await Depozit.scrie(f);
+      randeaza();
+    }
+    async function meniuFolder(fol){
+      const toate=await Depozit.toate();
+      let rec=toate.find(x=>x.tip==='folder'&&x.cale===fol);
+      meniu(fol.replace(/\/$/,''), [
+        {text:'Deschide', fn:()=>intraInFolder(fol)},
+        {text:'Redenumește', fn:()=>redenumesteFolder(fol, rec)},
+        {text:(rec&&rec.parola)?'Scoate parola':'Pune parolă', fn:async()=>{
+          if(!rec){ rec={cale:fol,tip:'folder',continut:'',creat:Date.now()}; }
+          await paroleaza(rec);
+        }},
+        {text:'Șterge folderul (cu tot)', rosu:true, fn:async()=>{
+          const cate=toate.filter(x=>x.tip!=='folder'&&x.cale.startsWith(fol)).length;
+          if(!confirm('Ștergi folderul „'+fol.replace(/\/$/,'')+'" și cele '+cate+' fișier(e) din el?')) return;
+          for(const x of toate){ if(x.cale===fol||x.cale.startsWith(fol)) await Depozit.sterge(x.cale); }
+          if(caleCurenta===fol) caleCurenta='';
+          randeaza();
+        }},
+      ]);
+    }
+    async function redenumesteFolder(fol, rec){
+      if(rec&&rec.parola){
+        const v=prompt('Parola pentru folderul '+fol.replace(/\/$/,'')+':');
+        if(v===null) return;
+        if(v!==rec.parola){ alert('Parolă greșită.'); return; }
+      }
+      const vechiNume=fol.replace(/\/$/,'');
+      let nume=prompt('Nume nou pentru folder:', vechiNume);
+      if(!nume) return; nume=nume.trim().replace(/\/+$/,'');
+      if(!nume || nume===vechiNume) return;
+      const nouFol=nume+'/';
+      const toate=await Depozit.toate();
+      if(toate.some(x=>x.cale===nouFol || x.cale.startsWith(nouFol))){ alert('Există deja un folder cu numele ăsta.'); return; }
+      // mută toate fișierele din folder + intrarea folderului
+      for(const x of toate){
+        if(x.cale===fol){ await Depozit.sterge(x.cale); x.cale=nouFol; await Depozit.scrie(x); }
+        else if(x.cale.startsWith(fol)){ const rest=x.cale.slice(fol.length); await Depozit.sterge(x.cale); x.cale=nouFol+rest; await Depozit.scrie(x); }
+      }
+      if(caleCurenta===fol) caleCurenta=nouFol;
+      randeaza();
+    }
+    async function paroleaza(f){
+      if(f.parola){
+        const v=prompt('Parola actuală (ca să o scoți):');
+        if(v===null) return;
+        if(v!==f.parola){ alert('Parolă greșită.'); return; }
+        delete f.parola;
+        await Depozit.scrie(f);
+        alert('Parola a fost scoasă.');
+      } else {
+        const p=prompt('Parola nouă (Atenție: e un lacăt, nu un seif — nu uita parola):');
+        if(!p) return;
+        f.parola=p;
+        await Depozit.scrie(f);
+      }
+      randeaza();
+    }
+    async function alegeMutare(f){
+      const toate=await Depozit.toate();
+      const foldere=new Set();
+      for(const x of toate){
+        if(x.tip==='folder') foldere.add(x.cale.replace(/\/$/,'')+'/');
+        else if(x.cale.includes('/')) foldere.add(x.cale.split('/')[0]+'/');
+      }
+      const opt=[{text:'⌂  acasă (rădăcină)', fn:()=>mutaIn(f,'')}];
+      for(const fol of [...foldere].sort()){
+        opt.push({text:'📁  '+fol.replace(/\/$/,''), fn:()=>mutaIn(f,fol)});
+      }
+      meniu('Mută „'+f.cale+'" în:', opt);
+    }
+    async function mutaIn(f, folder){
+      const baza=f.cale.split('/').pop();
+      const nou=folder+baza;
+      if(nou===f.cale){ return; }
+      if(await Depozit.gaseste(nou)){ alert('Există deja un fișier cu numele ăsta acolo.'); return; }
+      const v=f.cale; await Depozit.sterge(v); f.cale=nou; await Depozit.scrie(f);
+      randeaza();
+    }
+    async function folderNou(){
+      let nume=prompt('Numele folderului:');
+      if(!nume) return; nume=nume.trim().replace(/\/+$/,'');
+      if(!nume) return;
+      const cale=nume+'/';
+      if(await Depozit.gaseste(cale)){ alert('Există deja.'); return; }
+      const rec={cale,tip:'folder',continut:'',creat:Date.now()};
+      const p=prompt('Parolă pentru folder (lasă gol dacă nu vrei):');
+      if(p) rec.parola=p;
+      await Depozit.scrie(rec); randeaza();
+    }
+    async function fisierNou(){
+      let nume=prompt('Numele fișierului (ex: note.md):');
+      if(!nume) return; nume=nume.trim();
+      if(!nume) return;
+      if(!nume.includes('.')) nume+='.md';
+      const cale=caleCurenta+nume;
+      if(await Depozit.gaseste(cale)){ alert('Există deja.'); return; }
+      const tip=nume.endsWith('.md')?'md':nume.endsWith('.html')?'html':'text';
+      const f={cale,tip,continut:'',creat:Date.now()};
+      const p=prompt('Parolă pentru fișier (lasă gol dacă nu vrei):');
+      if(p) f.parola=p;
+      await Depozit.scrie(f); randeaza();
+    }
+  }
+});
+
+/* ============================================================
+   PUNTEA OASPETE ↔ SISTEM
+   Orice aplicație .html rulează ca oaspete într-o fereastră Logos.
+   Implicit e izolată (sigură), dar Logos îi întinde o punte:
+   dacă aplicația vrea, poate cere/salva/lista fișiere din depozit.
+
+   Contract (mesaje postMessage de la oaspete către Logos):
+     {logos:'cere-fisier'}              → primește fișierul asociat
+     {logos:'salveaza', continut, nume} → salvează în depozit
+     {logos:'listeaza'}                 → primește lista fișierelor
+     {logos:'gata'}                     → oaspetele e gata (trimitem fișierul)
+   Logos răspunde oaspetelui cu:
+     {logos:'fisier', continut, nume}
+     {logos:'salvat', nume}
+     {logos:'lista', fisiere:[...]}
+   ============================================================ */
+
+// rulează un oaspete (.html) într-o fereastră, cu puntea activă.
+// fisierAsociat (opțional): fișierul pe care oaspetele îl deschide.
+function ruleazaOaspete(numeApp, cod, fisierAsociat){
+  deschideFereastra('▷ '+numeApp,(corp)=>{
+    const wrap=document.createElement('div');
+    wrap.style.cssText='height:100%;display:flex;flex-direction:column;background:#fff';
+    const ifr=document.createElement('iframe');
+    ifr.setAttribute('sandbox','allow-scripts allow-forms allow-modals allow-popups allow-pointer-lock allow-same-origin allow-downloads');
+    ifr.style.cssText='flex:1;width:100%;border:none;background:#fff';
+    wrap.appendChild(ifr);
+    corp.appendChild(wrap);
+
+    // Folosim blob: în loc de srcdoc.
+    // Pe deasupra, aplicațiile-oaspete cer adesea localStorage — dar într-un iframe
+    // sandboxed browserul îl refuză („Access is denied"), iar aplicația moare (pagină albă).
+    // Le dăm o cămară proprie, care trăiește în memoria ferestrei și se salvează în Logos,
+    // criptată cu aceeași cheie master ca restul sistemului.
+    const cheieCamara = 'camara_oaspete_'+numeApp;
+
+    let adresaBlob=null;
+
+    // pornirea e async (trebuie să decriptăm cămara înainte să construim iframe-ul),
+    // dar deschideFereastra așteaptă o funcție de curățenie *sincronă* mai jos —
+    // de-asta lucrul async stă izolat aici, într-un IIFE separat.
+    (async()=>{
+      let camara={};
+      try{
+        const brut=localStorage.getItem(cheieCamara);
+        if(brut) camara=JSON.parse(await Cripto.decripteaza(brut));
+      }catch(e){ camara={}; }
+
+      const petic = `<script>
+      (function(){
+        // cămară falsă, ca aplicația să nu moară în iframe sandboxed
+        var date = ${JSON.stringify(camara)};
+        function salveaza(){
+          try{ parent.postMessage({logosCamara:${JSON.stringify(cheieCamara)}, date:date},'*'); }catch(e){}
+        }
+        var falsa = {
+          getItem: function(k){ return Object.prototype.hasOwnProperty.call(date,k) ? String(date[k]) : null; },
+          setItem: function(k,v){ date[String(k)]=String(v); salveaza(); },
+          removeItem: function(k){ delete date[String(k)]; salveaza(); },
+          clear: function(){ date={}; salveaza(); },
+          key: function(i){ return Object.keys(date)[i] || null; },
+          get length(){ return Object.keys(date).length; }
+        };
+        try{
+          var proba = window.localStorage; proba.getItem('x');   // merge? îl lăsăm în pace
+        }catch(e){
+          try{ Object.defineProperty(window,'localStorage',{value:falsa,configurable:true}); }catch(_){}
+          try{ Object.defineProperty(window,'sessionStorage',{value:falsa,configurable:true}); }catch(_){}
+        }
+      })();
+      <\/script>`;
+
+      const codCuPetic = cod.replace(/<head([^>]*)>/i, '<head$1>'+petic);
+      const codFinal = (codCuPetic!==cod) ? codCuPetic : (petic + cod);
+
+      try{
+        const pachet=new Blob([codFinal],{type:'text/html'});
+        adresaBlob=URL.createObjectURL(pachet);
+        ifr.src=adresaBlob;
+      }catch(e){
+        ifr.srcdoc=codFinal;   // rezervă
+      }
+    })();
+
+    // ascultăm salvările din cămara oaspetelui — criptăm înainte să atingă discul
+    function laCamara(ev){
+      const d=ev.data;
+      if(!d || d.logosCamara!==cheieCamara) return;
+      (async()=>{
+        try{
+          const criptat=await Cripto.encripteaza(JSON.stringify(d.date||{}));
+          localStorage.setItem(cheieCamara, criptat);
+        }catch(e){}
+      })();
+    }
+    window.addEventListener('message', laCamara);
+
+    // puntea: ascultă mesajele DOAR de la acest iframe
+    function raspunde(msg){ try{ ifr.contentWindow.postMessage(msg,'*'); }catch(e){} }
+    async function laMesaj(ev){
+      if(ev.source!==ifr.contentWindow) return; // doar de la oaspetele nostru
+      const d=ev.data||{};
+      if(!d || typeof d.logos!=='string') return;
+      try{
+        if(d.logos==='gata' || d.logos==='cere-fisier'){
+          if(fisierAsociat) raspunde({logos:'fisier', continut:fisierAsociat.continut||'', nume:fisierAsociat.cale});
+        }
+        else if(d.logos==='salveaza' && typeof d.continut==='string'){
+          const nume = d.nume || (fisierAsociat?fisierAsociat.cale:('document-'+Date.now()+'.md'));
+          const ex = await Depozit.gaseste(nume);
+          const f = ex || {cale:nume, tip:(nume.split('.').pop()||'text'), creat:Date.now()};
+          f.continut=d.continut;
+          await Depozit.scrie(f);
+          if(fisierAsociat && fisierAsociat.cale===f.cale) fisierAsociat.continut=d.continut;
+          raspunde({logos:'salvat', nume:f.cale});
+        }
+        else if(d.logos==='listeaza'){
+          const t=await Depozit.toate();
+          raspunde({logos:'lista', fisiere:t.map(x=>({nume:x.cale, tip:x.tip}))});
+        }
+      }catch(e){ console.warn('Punte oaspete:',e); }
+    }
+    window.addEventListener('message',laMesaj);
+    // curățenie când fereastra se închide
+    return ()=>{
+      window.removeEventListener('message',laMesaj);
+      window.removeEventListener('message',laCamara);
+      if(adresaBlob){ try{ URL.revokeObjectURL(adresaBlob); }catch(e){} }
+    };
+  },{}, {appId:'oaspete:'+numeApp+(fisierAsociat?(':'+fisierAsociat.cale):''), iconita:'▷'});
+}
+
+/* ---------- ASOCIERI: ce oaspete deschide ce tip de fișier ----------
+   Poți instala o aplicație .html și o desemnezi handler pentru o extensie
+   prin terminal: `asociaza md AplicatiaMea.html`. Altfel, text simplu. */
+async function deschideCuApp(f){
+  // fișier cu parolă → cere-o (lacăt, nu seif — conținutul nu e criptat)
+  if(f.parola){
+    const p=prompt('Parola pentru '+f.cale+':');
+    if(p===null) return;
+    if(p!==f.parola){ alert('Parolă greșită.'); return; }
+  }
+  // un .html e o aplicație-oaspete → o rulează direct
+  if(f.tip==='html'){ ruleazaOaspete(f.cale, f.continut); return; }
+  // caută un handler instalat pentru extensie (din memoria sistemului)
+  const ext=(f.cale||'').toLowerCase().split('.').pop();
+  const asoc=(Memorie.ia().asocieri)||{};
+  const numeApp=asoc[ext];
+  if(numeApp){
+    const app=(await Depozit.toate()).find(x=>x.tip==='html' && x.cale===numeApp);
+    if(app){ ruleazaOaspete(app.cale, app.continut, f); return; }
+  }
+  // rezervă: vizualizare text cu fundal reglabil (aceleași teme)
+  deschideVizualizareSimpla(f);
+}
+
+// vizualizare text/markdown cu paletă completă (ca aplicația ta model)
+const PALETA_BG_VIZ=['#0d1117','#16302b','#1e2530','#2a2620','#3a3326','#c9bfad','#e9dfc9','#f3efe6','#ffffff'];
+const PALETA_INK_VIZ=['#c9d1d9','#dfeae3','#e3d3bd','#58a6ff','#d9a441','#9a6a2f','#3a3326','#2a2620','#000000'];
+// preferințe de citire, ținute în memoria sistemului
+let prefViz = { bg:'#0d1117', text:'#c9d1d9', accent:'#58a6ff', font:18, lh:1.7, lumina:0 };
+function incarcaPrefViz(){ const s=Memorie.ia(); if(s&&s.vizPref2) prefViz={...prefViz,...s.vizPref2}; }
+function tonHex(hex, cant){
+  let h=hex.replace('#',''); if(h.length===3)h=h.split('').map(c=>c+c).join('');
+  let r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
+  const aj=v=>Math.max(0,Math.min(255,Math.round(v+(cant/100)*255)));
+  const hx=v=>v.toString(16).padStart(2,'0');
+  return '#'+hx(aj(r))+hx(aj(g))+hx(aj(b));
+}
+function deschideVizualizareSimpla(f){
+  const eMd=/\.(md|markdown)$/i.test(f.cale);
+  deschideFereastra('▢ '+f.cale,(c)=>{
+    incarcaPrefViz();
+    const root=document.createElement('div');
+    root.style.cssText='height:100%;display:flex;flex-direction:column;position:relative';
+    root.innerHTML=`
+      <div class="viz-bara">
+        <span class="viz-nume"></span>
+        <span class="viz-edit" title="editează">✎</span>
+        <span class="viz-aspect" title="aspect">◐</span>
+        <span class="viz-mic" title="micșorează">A−</span>
+        <span class="viz-mare" title="mărește">A+</span>
+      </div>
+      <div class="viz-corp"></div>
+      <div class="viz-panou">
+        <div class="ts-rand"><label>Fundal</label><div class="viz-swBg ed-sw2"></div></div>
+        <div class="ts-rand"><label>Luminozitate (deschis ← → închis)</label><div class="ts-ctrl"><input type="range" class="viz-lumina" min="-50" max="50" step="1"><span class="ts-val viz-luminaV"></span></div></div>
+        <div class="ts-rand"><label>Culoare text</label><div class="viz-swInk ed-sw2"></div></div>
+        <div class="ts-rand"><label>Mărime font</label><div class="ts-ctrl"><input type="range" class="viz-font" min="13" max="30" step="1"><span class="ts-val viz-fontV"></span></div></div>
+        <div class="ts-rand"><label>Spațiere rânduri</label><div class="ts-ctrl"><input type="range" class="viz-lh" min="1.1" max="2.3" step="0.05"><span class="ts-val viz-lhV"></span></div></div>
+        <div class="term-setari-x viz-panou-x">gata</div>
+      </div>`;
+    c.appendChild(root);
+    root.querySelector('.viz-nume').textContent=f.cale;
+    const corpV=root.querySelector('.viz-corp');
+    const panou=root.querySelector('.viz-panou');
+    const btnEdit=root.querySelector('.viz-edit');
+    let mod='citire';          // 'citire' | 'editare'
+    let salvTimer=null;
+
+    function md2htmlLocal(md){
+      const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      return md.split('\n').map(l=>{
+        let t=l.trim();
+        if(t.startsWith('## '))return '<h2>'+esc(t.slice(3))+'</h2>';
+        if(t.startsWith('# '))return '<h1>'+esc(t.slice(2))+'</h1>';
+        if(t.startsWith('> '))return '<blockquote>'+esc(t.slice(2))+'</blockquote>';
+        if(/^[-*+]\s/.test(t))return '<li>'+esc(t.replace(/^[-*+]\s/,''))+'</li>';
+        if(t==='')return '';
+        return '<p>'+esc(t).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>').replace(/`(.+?)`/g,'<code>$1</code>')+'</p>';
+      }).join('');
+    }
+    // salvare automată (ca în modelul tău: scrii, se salvează singur)
+    function programeazaSalvare(){
+      clearTimeout(salvTimer);
+      salvTimer=setTimeout(async()=>{ try{ await Depozit.scrie(f); }catch(e){} },500);
+    }
+    function randeazaCorp(){
+      const bg=tonHex(prefViz.bg, prefViz.lumina);
+      const txt=tonHex(prefViz.text, prefViz.lumina*0.3);
+      const ac=prefViz.accent;
+      if(mod==='editare'){
+        corpV.innerHTML='';
+        const ta=document.createElement('textarea');
+        ta.className='viz-scriere';
+        ta.value=f.continut||'';
+        ta.spellcheck=false;
+        ta.style.cssText='width:100%;min-height:100%;border:none;outline:none;resize:none;'+
+          'background:transparent;color:inherit;font:inherit;line-height:inherit;'+
+          'padding:0;display:block;caret-color:'+ac;
+        ta.addEventListener('input',()=>{ f.continut=ta.value; programeazaSalvare(); });
+        corpV.appendChild(ta);
+        setTimeout(()=>ta.focus(),150);
+      } else if(eMd){
+        corpV.innerHTML='<div class="vd">'+md2htmlLocal(f.continut||'')+'</div>';
+        const s=corpV.querySelector('.vd');
+        s.querySelectorAll('h1').forEach(h=>{h.style.color=txt;h.style.fontSize='1.6em';h.style.margin='.3em 0 .5em'});
+        s.querySelectorAll('h2').forEach(h=>{h.style.color=ac;h.style.fontSize='1.3em';h.style.margin='1em 0 .3em'});
+        s.querySelectorAll('p').forEach(p=>p.style.margin='0 0 .9em');
+        s.querySelectorAll('blockquote').forEach(b=>{b.style.borderLeft='2px solid '+ac;b.style.paddingLeft='14px';b.style.opacity='.85';b.style.fontStyle='italic';b.style.margin='0 0 .9em'});
+        s.querySelectorAll('code').forEach(cc=>{cc.style.background=ac+'22';cc.style.padding='.1em .4em';cc.style.borderRadius='4px'});
+        s.querySelectorAll('strong').forEach(x=>x.style.color=txt);
+        s.querySelectorAll('li').forEach(li=>{li.style.margin='.3em 0 .3em 1.2em'});
+      } else {
+        corpV.innerHTML='<pre style="white-space:pre-wrap;font-family:inherit;margin:0">'+(f.continut||'(gol)').replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</pre>';
+      }
+    }
+    function aplica(){
+      const bg=tonHex(prefViz.bg, prefViz.lumina);
+      const txt=tonHex(prefViz.text, prefViz.lumina*0.3);
+      const ac=prefViz.accent;
+      root.style.background=bg; root.style.color=txt;
+      root.querySelector('.viz-bara').style.cssText='display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid '+ac+'33;background:'+bg+';flex-shrink:0';
+      root.querySelector('.viz-nume').style.cssText='flex:1;font-size:.82rem;opacity:.6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+      root.querySelectorAll('.viz-aspect,.viz-mic,.viz-mare').forEach(x=>{x.style.cssText='cursor:pointer;color:'+ac+';padding:6px 8px;font-size:1.1rem'});
+      btnEdit.style.cssText='cursor:pointer;color:'+ac+';padding:7px 12px;font-size:1rem;border:1px solid '+ac+'55;border-radius:8px;font-weight:600';
+      corpV.style.cssText='flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px 16px 40px;width:100%;font-size:'+prefViz.font+'px;line-height:'+prefViz.lh+';background:'+bg+';color:'+txt+';';
+      randeazaCorp();
+    }
+    function salv(){ Memorie.salveaza({vizPref2:prefViz}); }
+    // comutare citire ↔ editare
+    btnEdit.addEventListener('click',()=>{
+      mod = mod==='editare' ? 'citire' : 'editare';
+      btnEdit.textContent = mod==='editare' ? '✓ citește' : '✎';
+      btnEdit.title = mod==='editare' ? 'înapoi la citire' : 'editează';
+      aplica();
+    });
+    // swatches
+    function faSw(cont, culori, set){
+      cont.innerHTML='';
+      culori.forEach(col=>{ const s=document.createElement('span'); s.className='pic2'; s.style.background=col; s.addEventListener('click',()=>{set(col);aplica();salv();}); cont.appendChild(s); });
+    }
+    faSw(root.querySelector('.viz-swBg'), PALETA_BG_VIZ, c=>prefViz.bg=c);
+    faSw(root.querySelector('.viz-swInk'), PALETA_INK_VIZ, c=>prefViz.text=c);
+    // cursoare
+    const rLum=root.querySelector('.viz-lumina'), rF=root.querySelector('.viz-font'), rH=root.querySelector('.viz-lh');
+    function sinc(){
+      rLum.value=prefViz.lumina; root.querySelector('.viz-luminaV').textContent=(prefViz.lumina>0?'+':'')+prefViz.lumina;
+      rF.value=prefViz.font; root.querySelector('.viz-fontV').textContent=prefViz.font+'px';
+      rH.value=prefViz.lh; root.querySelector('.viz-lhV').textContent=(+prefViz.lh).toFixed(2);
+    }
+    rLum.addEventListener('input',()=>{prefViz.lumina=+rLum.value;root.querySelector('.viz-luminaV').textContent=(prefViz.lumina>0?'+':'')+prefViz.lumina;aplica();salv();});
+    rF.addEventListener('input',()=>{prefViz.font=+rF.value;root.querySelector('.viz-fontV').textContent=prefViz.font+'px';aplica();salv();});
+    rH.addEventListener('input',()=>{prefViz.lh=+rH.value;root.querySelector('.viz-lhV').textContent=(+prefViz.lh).toFixed(2);aplica();salv();});
+    root.querySelector('.viz-aspect').addEventListener('click',()=>{ panou.classList.toggle('deschis'); sinc(); });
+    root.querySelector('.viz-panou-x').addEventListener('click',()=>panou.classList.remove('deschis'));
+    root.querySelector('.viz-mare').addEventListener('click',()=>{ prefViz.font=Math.min(prefViz.font+1,30); aplica(); salv(); });
+    root.querySelector('.viz-mic').addEventListener('click',()=>{ prefViz.font=Math.max(prefViz.font-1,12); aplica(); salv(); });
+    aplica();
+  },{},{appId:'viz:'+f.cale, iconita:'▢'});
+}
+
+
+
+function ruleazaHtml(nume, cod, fisierDeschis){
+  ruleazaOaspete(nume, cod, fisierDeschis||null);
+}
+
+/* ===================== APLICAȚIA: APLICAȚII (.html) ===================== */
+Nucleu.inregistreaza({
+  id:'aplicatii', nume:'Aplicații', iconita:'▷',
+  montare(corp){
+    const root=document.createElement('div');
+    root.className='fisiere';
+    corp.appendChild(root);
+
+    // input ascuns pentru alegătorul de fișiere Android
+    const alegator=document.createElement('input');
+    alegator.type='file';
+    alegator.accept='.html,.htm,text/html';
+    alegator.style.display='none';
+    root.appendChild(alegator);
+
+    alegator.addEventListener('change',async()=>{
+      const fis=alegator.files[0];
+      if(!fis) return;
+      const cod=await fis.text();
+      const nume=fis.name;
+      await Depozit.scrie({cale:nume,tip:'html',continut:cod,creat:Date.now()});
+      alegator.value='';
+      randeaza();
+    });
+
+    randeaza();
+
+    async function randeaza(){
+      const toate=await Depozit.toate();
+      const apps=toate.filter(f=>f.tip==='html');
+      root.querySelectorAll('.cale-bar,.rand,.gol,.buton-adauga').forEach(x=>x.remove());
+
+      const buton=document.createElement('div');
+      buton.className='buton-adauga';
+      buton.style.cssText='margin:14px 18px;padding:14px;border:1px dashed var(--linie-clar);border-radius:12px;text-align:center;color:var(--accent);cursor:pointer;font-size:.92rem';
+      buton.textContent='＋  Adaugă o aplicație (.html)';
+      buton.addEventListener('click',()=>alegator.click());
+      root.appendChild(buton);
+
+      if(!apps.length){
+        const g=document.createElement('div');
+        g.className='gol';
+        g.innerHTML='Nicio aplicație încă.\nApasă butonul de sus și alege un fișier .html din telefon.\nSe va rula aici, înăuntru, offline.';
+        root.appendChild(g);
+        return;
+      }
+      apps.sort((a,b)=>a.cale.localeCompare(b.cale));
+      for(const a of apps){
+        const r=document.createElement('div');
+        r.className='rand';
+        r.innerHTML=`<span class="ig">▷</span>
+          <div class="info"><div class="n">${a.cale}</div>
+          <div class="m">aplicație · ${volumFis(a.continut)}</div></div>
+          <span class="sterge-app" style="color:var(--text-stins);padding:6px 10px">✕</span>`;
+        r.querySelector('.info').addEventListener('click',()=>ruleazaHtml(a.cale,a.continut));
+        r.querySelector('.ig').addEventListener('click',()=>ruleazaHtml(a.cale,a.continut));
+        r.querySelector('.sterge-app').addEventListener('click',async(e)=>{
+          e.stopPropagation();
+          await Depozit.sterge(a.cale);
+          randeaza();
+        });
+        root.appendChild(r);
+      }
+    }
+  }
+});
+
+/* ===================== APLICAȚIA: TERMINAL (română, puternic) ===================== */
+/* ============================================================
+   UTILITARE — unelte grupate, ca meniul Start
+   ============================================================ */
+Nucleu.inregistreaza({
+  id:'utilitare', nume:'Utilitare', iconita:'⚒',
+  montare(corp){
+    const root=document.createElement('div');
+    root.className='util';
+    corp.appendChild(root);
+    root.innerHTML=`
+      <div class="util-file">
+        <span class="uf activa" data-g="bani">Bani</span>
+        <span class="uf" data-g="doctor">Doctor</span>
+      </div>
+      <div class="util-corp"></div>`;
+    const file=root.querySelector('.util-file');
+    const corpU=root.querySelector('.util-corp');
+
+    file.addEventListener('click',e=>{
+      const b=e.target.closest('.uf'); if(!b) return;
+      file.querySelectorAll('.uf').forEach(x=>x.classList.toggle('activa',x===b));
+      randeaza(b.dataset.g);
+    });
+
+    function camp(eticheta, placeholder, buton, actiune){
+      return `<div class="u-rand">
+        <label>${eticheta}</label>
+        <div class="u-ctrl">
+          <input type="text" placeholder="${placeholder}" data-a="${actiune}">
+          <button data-a="${actiune}">${buton}</button>
+        </div>
+        <div class="u-rez" data-r="${actiune}"></div>
+      </div>`;
+    }
+    function rezultat(actiune, text, cls){
+      const r=corpU.querySelector('[data-r="'+actiune+'"]');
+      if(r){ r.textContent=text; r.className='u-rez '+(cls||''); }
+    }
+
+    async function randeaza(grup){
+      corpU.innerHTML='';
+      if(grup==='bani'){
+        const chelt=(Memorie.ia().cheltuieli)||[];
+        const d=new Date(); const lunaAsta=d.getFullYear()+'-'+d.getMonth();
+        const ale=chelt.filter(c=>{const x=new Date(c.cand);return (x.getFullYear()+'-'+x.getMonth())===lunaAsta;});
+        let bilant='';
+        if(!ale.length) bilant='<div class="u-gol">Nicio cheltuială luna asta.</div>';
+        else{
+          const pe={}; let total=0;
+          for(const c of ale){ pe[c.categorie]=(pe[c.categorie]||0)+c.suma; total+=c.suma; }
+          bilant='<div class="u-bilant">';
+          Object.entries(pe).sort((a,b)=>b[1]-a[1]).forEach(([cat,s])=>{
+            const proc=Math.round(s/total*100);
+            bilant+=`<div class="u-bar"><span class="u-cat">${cat}</span>
+              <span class="u-bara"><i style="width:${proc}%"></i></span>
+              <span class="u-suma">${s} (${proc}%)</span></div>`;
+          });
+          bilant+='<div class="u-total">TOTAL: '+total+'</div></div>';
+        }
+        corpU.innerHTML =
+          camp('Cheltuială (sumă + categorie)','ex: 50 mâncare','Notează','cheltuit') +
+          bilant;
+      }
+      else if(grup==='doctor'){
+        corpU.innerHTML='<div class="u-gol">Se verifică sistemul...</div>';
+        const brute=await Depozit.bruteTot();
+        const decriptate=await Depozit.toateNefiltrate();
+        const total=brute.length;
+        const criptate=brute.filter(f=>Cripto.esteCriptat(f.continut)).length;
+        const vechi=brute.filter(f=>typeof f.continut==='string' && f.continut && !Cripto.esteCriptat(f.continut)).length;
+        const stricate=decriptate.filter(f=>f.continut==='⚠ eroare la decriptare' || f.continut==='⚠ blocat');
+        const apps=decriptate.filter(f=>f.tip==='html').length;
+        const fisiereReale=decriptate.filter(f=>f.tip!=='folder').length;
+
+        let octeti=0; for(const f of decriptate){ try{octeti+=new Blob([f.continut||'']).size;}catch(e){} }
+        const fmtOcteti=b=>b<1024?b+' B':b<1024*1024?(b/1024).toFixed(1)+' KB':(b/(1024*1024)).toFixed(2)+' MB';
+
+        let persistent=null, est=null;
+        try{ if(navigator.storage && navigator.storage.persisted) persistent=await navigator.storage.persisted(); }catch(e){}
+        try{ if(navigator.storage && navigator.storage.estimate) est=await navigator.storage.estimate(); }catch(e){}
+
+        let html='';
+        // ---- criptare ----
+        html+='<div class="u-rand"><label>Criptare</label><div class="u-info" style="text-align:left;padding:10px 2px;line-height:2">';
+        html+='<div>'+(stricate.length?'⚠️ ':'🔒 ')+'AES-GCM 256 · PBKDF2 310.000 iterații</div>';
+        html+='<div>Fișiere criptate: <b style="font-size:1em">'+criptate+'</b> din '+total+'</div>';
+        if(vechi>0) html+='<div style="color:var(--accent-cald)">'+vechi+' fișier(e) vechi, încă necriptate — se vor cripta la următoarea salvare</div>';
+        html+='</div></div>';
+
+        // ---- fișiere corupte ----
+        html+='<div class="u-rand"><label>Fișiere corupte</label>';
+        if(!stricate.length){
+          html+='<div class="u-info" style="text-align:left;padding:10px 2px">✓ Niciunul. Toate fișierele se decriptează corect.</div>';
+        } else {
+          html+='<div class="u-nota" style="color:var(--rosu)">'+stricate.length+' fișier(e) nu se pot decripta (parolă schimbată greșit, date corupte, sau salvate cu altă cheie).</div>';
+          html+='<div class="u-lista" data-corupte></div>';
+        }
+        html+='</div>';
+
+        // ---- spațiu ----
+        html+='<div class="u-rand"><label>Spațiu folosit</label><div class="u-info" style="text-align:left;padding:6px 2px">';
+        if(est){
+          const used=est.usage||0, quota=est.quota||0;
+          const pct=quota?Math.round(used/quota*100):0;
+          const fmt=b=>b>=1073741824?(b/1073741824).toFixed(1)+' GB':b>=1048576?(b/1048576).toFixed(1)+' MB':(b/1024).toFixed(0)+' KB';
+          html+='<div class="u-bilant"><div class="u-bar"><span class="u-cat">Folosit</span><span class="u-bara"><i style="width:'+Math.min(pct,100)+'%"></i></span><span class="u-suma">'+fmt(used)+' ('+pct+'%)</span></div></div>';
+          html+='<div style="color:var(--text-stins);font-size:.82rem;margin-top:4px">Liber: '+fmt(Math.max(0,quota-used))+'</div>';
+        } else {
+          html+='<div style="color:var(--text-stins)">Browserul nu oferă această informație.</div>';
+        }
+        html+='<div style="margin-top:8px;color:var(--text-stins);font-size:.82rem">Stocare persistentă: '+
+          (persistent===null?'necunoscut':persistent?'✓ activă (browserul nu va șterge singur datele)':'⚠ inactivă — browserul le poate șterge dacă rămâne fără spațiu')+'</div>';
+        html+='</div></div>';
+
+        // ---- statistici ----
+        html+='<div class="u-rand"><label>Statistici</label><div class="u-info" style="text-align:left;padding:10px 2px;line-height:2">';
+        html+='<div>Fișiere: '+fisiereReale+'  ·  Aplicații: '+apps+'</div>';
+        html+='<div>Spațiu total (necriptat, aproximativ): '+fmtOcteti(octeti)+'</div>';
+        html+='</div></div>';
+
+        corpU.innerHTML=html;
+
+        if(stricate.length){
+          const gazda=corpU.querySelector('[data-corupte]');
+          for(const f of stricate){
+            const r=document.createElement('div'); r.className='rand';
+            r.innerHTML='<span class="ig">⚠</span><div class="info"><div class="n">'+f.cale+'</div><div class="m">'+f.tip+'</div></div>';
+            r.addEventListener('click',()=>deschideCuApp(f));
+            gazda.appendChild(r);
+          }
+        }
+      }
+      lega();
+    }
+
+    function lega(){
+      corpU.querySelectorAll('button[data-a]').forEach(b=>{
+        b.addEventListener('click',()=>ruleaza(b.dataset.a));
+      });
+      corpU.querySelectorAll('input[data-a]').forEach(inp=>{
+        inp.addEventListener('keydown',e=>{ if(e.key==='Enter') ruleaza(inp.dataset.a); });
+      });
+    }
+
+    async function ruleaza(a){
+      const inp=corpU.querySelector('input[data-a="'+a+'"]');
+      const v=inp?inp.value.trim():'';
+      try{
+        if(a==='calc'){
+          if(!/^[\d\s+\-*/().,%]+$/.test(v)) return rezultat(a,'Doar numere și + - * / ( ) %','err');
+          rezultat(a, v+' = '+Function('"use strict";return ('+v.replace(/,/g,'.')+')')(), 'ok');
+        }
+        else if(a==='procent'){
+          const m=v.match(/([\d.,]+)\s*(?:%|la suta)?\s*din\s*([\d.,]+)/i);
+          if(!m) return rezultat(a,'Scrie: 20 din 150','err');
+          const p=parseFloat(m[1].replace(',','.')), t=parseFloat(m[2].replace(',','.'));
+          rezultat(a, p+'% din '+t+' = '+(p*t/100), 'ok');
+        }
+        else if(a==='medie'){
+          const nr=v.split(/[\s,]+/).map(x=>parseFloat(x.replace(',','.'))).filter(x=>!isNaN(x));
+          if(!nr.length) return rezultat(a,'Scrie numere separate prin spațiu','err');
+          const s=nr.reduce((x,y)=>x+y,0);
+          rezultat(a,'Media a '+nr.length+' numere = '+(s/nr.length).toFixed(2)+'   (suma '+s+')','ok');
+        }
+        else if(a==='conv'){
+          const m=v.match(/^([\d.,]+)\s*(\S+)(?:\s+(?:in|în))?\s+(\S+)$/i);
+          if(!m) return rezultat(a,'Scrie: 10 km mile','err');
+          const val=parseFloat(m[1].replace(',','.')), din=m[2].toLowerCase(), spre=m[3].toLowerCase();
+          if(din==='c'&&spre==='f') return rezultat(a, val+'°C = '+(val*9/5+32).toFixed(1)+'°F','ok');
+          if(din==='f'&&spre==='c') return rezultat(a, val+'°F = '+((val-32)*5/9).toFixed(1)+'°C','ok');
+          const R={'km:mile':0.621371,'mile:km':1.60934,'kg:lb':2.20462,'lb:kg':0.453592,
+                   'm:ft':3.28084,'ft:m':0.3048,'cm:inch':0.393701,'inch:cm':2.54,'l:gal':0.264172,'gal:l':3.78541};
+          const r=R[din+':'+spre];
+          if(!r) return rezultat(a,'Nu știu conversia asta','err');
+          rezultat(a, val+' '+din+' = '+(val*r).toFixed(3)+' '+spre,'ok');
+        }
+        else if(a==='crono'){
+          const m=v.match(/^([\d.,]+)\s*(.*)$/);
+          if(!m) return rezultat(a,'Scrie: 10 cumpără pâine','err');
+          const min=parseFloat(m[1].replace(',','.')), text=m[2]||'';
+          if(isNaN(min)||min<=0) return rezultat(a,'Pune un număr de minute','err');
+          Temporizatoare.porneste(min, text);
+          rezultat(a,'Pornit! Vezi timpul rămas sus, în bară.'+(text?('  ('+text+')'):''),'ok');
+          inp.value='';
+        }
+        else if(a==='sarcina'){
+          if(!v) return rezultat(a,'Scrie o sarcină','err');
+          let text=v, termen=null;
+          const m=text.match(/\s+(?:pana|până)\s+(\S+)\s*$/i);
+          if(m){ termen=parseTermenGlobal(m[1]); if(termen) text=text.slice(0,m.index).trim(); }
+          const s=(Memorie.ia().sarcini)||[];
+          s.push({text,gata:false,creat:Date.now(),termen});
+          await Memorie.salveaza({sarcini:s});
+          inp.value=''; randeaza('sarcini');
+        }
+        else if(a==='cheltuit'){
+          const m=v.match(/^([\d.,]+)\s+(.+)$/);
+          if(!m) return rezultat(a,'Scrie: 50 mâncare','err');
+          const suma=parseFloat(m[1].replace(',','.'));
+          if(isNaN(suma)) return rezultat(a,'Suma nu e un număr','err');
+          const c=(Memorie.ia().cheltuieli)||[];
+          c.push({suma, categorie:m[2].trim().toLowerCase(), cand:Date.now()});
+          await Memorie.salveaza({cheltuieli:c});
+          inp.value=''; randeaza('bani');
+        }
+        else if(a==='parola'){
+          const lung=Math.min(Math.max(parseInt(v)||14,8),40);
+          const set='abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*';
+          let p=''; const rnd=new Uint32Array(lung); crypto.getRandomValues(rnd);
+          for(let i=0;i<lung;i++) p+=set[rnd[i]%set.length];
+          rezultat(a, p, 'ok mono');
+        }
+        else if(a==='uuid'){
+          rezultat(a, (crypto.randomUUID?crypto.randomUUID():'—'), 'ok mono');
+        }
+        else if(a==='hex'){
+          const n=parseInt(v);
+          if(isNaN(n)) return rezultat(a,'Scrie un număr','err');
+          rezultat(a, n+' = 0x'+n.toString(16).toUpperCase()+'  = bin '+n.toString(2),'ok mono');
+        }
+        else if(a==='b64'){
+          if(!v) return rezultat(a,'Scrie un text','err');
+          rezultat(a, btoa(unescape(encodeURIComponent(v))),'ok mono');
+        }
+        else if(a==='b64d'){
+          try{ rezultat(a, decodeURIComponent(escape(atob(v))),'ok'); }
+          catch(e){ rezultat(a,'Nu pot decoda','err'); }
+        }
+        else if(a==='ts'){
+          rezultat(a,'Unix: '+Math.floor(Date.now()/1000)+'   (ms: '+Date.now()+')','ok mono');
+        }
+      }catch(e){ rezultat(a,'Eroare: '+e.message,'err'); }
+    }
+
+    randeaza('bani');
+    return ()=>{ if(corpU._opreste) corpU._opreste(); };
+  }
+});
+
+// parseTermen global (folosit și de Utilitare)
+function parseTermenGlobal(cuv){
+  const c=(cuv||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const d=new Date(); d.setHours(23,59,0,0);
+  if(c==='azi') return d.getTime();
+  if(c==='maine'){ d.setDate(d.getDate()+1); return d.getTime(); }
+  if(c==='poimaine'){ d.setDate(d.getDate()+2); return d.getTime(); }
+  const zile={duminica:0,luni:1,marti:2,miercuri:3,joi:4,vineri:5,sambata:6};
+  if(c in zile){ let dif=(zile[c]-d.getDay()+7)%7; if(dif===0)dif=7; d.setDate(d.getDate()+dif); return d.getTime(); }
+  const m=c.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if(m) return new Date(+m[1],+m[2]-1,+m[3],23,59).getTime();
+  return null;
+}
+function dataScurta(ts){
+  const d=new Date(ts);
+  const zile=['dum','lun','mar','mie','joi','vin','sâm'];
+  return zile[d.getDay()]+' '+String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0');
+}
+
+Nucleu.inregistreaza({
+  id:'terminal', nume:'Terminal', iconita:'▸_',
+  montare(corp){
+    // ---- teme alese de tine (din capturile tale) ----
+    const TEME = {
+      pin:    {nume:'Pin',    bg:'#16302b', text:'#dfeae3', panou:'#1d3a33', linie:'#274a41', accent:'#d9a441', cald:'#d9a441', verde:'#7fcaa0', stins:'#8fa89c'},
+      nisip:  {nume:'Nisip',  bg:'#c9bfad', text:'#3a3326', panou:'#bdb29c', linie:'#a99e86', accent:'#9a6a2f', cald:'#9a6a2f', verde:'#5e7d4f', stins:'#7a7058'},
+      noapte: {nume:'Noapte', bg:'#0a0e14', text:'#c9d1d9', panou:'#161b22', linie:'#21262d', accent:'#58a6ff', cald:'#d29922', verde:'#3fb950', stins:'#8b949e'},
+    };
+    let pref = { tema:'noapte', lumina:0, font:1.12, lh:1.7, ls:0, bgLiber:null, textLiber:null };
+    // palete libere (ca la citirea fișierelor)
+    const PAL_BG_TERM=['#0a0e14','#16302b','#1e2530','#2a2620','#3a3326','#c9bfad','#e9dfc9','#f3efe6','#ffffff'];
+    const PAL_INK_TERM=['#c9d1d9','#dfeae3','#e3d3bd','#58a6ff','#d29922','#3fb950','#9a6a2f','#3a3326','#000000'];
+
+    const t=document.createElement('div'); t.className='term';
+    t.innerHTML=`
+      <div id="term-unelte">
+        <span class="tu tu-setari">⚙ setări</span>
+        <span class="tu tu-ajutor">? ajutor</span>
+        <span class="sp"></span>
+        <span class="tu tu-curata">curăță</span>
+      </div>
+      <div id="iesire-term"></div>
+      <div id="intrare-term">
+        <span class="pr">›</span>
+        <input id="cmd" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="scrie o comandă…  (ajutor)">
+      </div>
+      <div class="term-setari">
+        <div class="ts-rand"><label>Teme gata</label><div class="ts-teme"></div></div>
+        <div class="ts-rand"><label>Fundal (culoare liberă)</label><div class="ts-swBg ed-sw2"></div></div>
+        <div class="ts-rand"><label>Culoare text</label><div class="ts-swInk ed-sw2"></div></div>
+        <div class="ts-rand"><label>Luminozitate (închis ← → deschis)</label><div class="ts-ctrl"><input type="range" class="ts-lumina" min="-50" max="50" step="1"><span class="ts-val ts-luminaV"></span></div></div>
+        <div class="ts-rand"><label>Mărime font</label><div class="ts-ctrl"><input type="range" class="ts-font" min="0.85" max="1.7" step="0.03"><span class="ts-val ts-fontV"></span></div></div>
+        <div class="ts-rand"><label>Strângere rânduri</label><div class="ts-ctrl"><input type="range" class="ts-lh" min="0.9" max="1.9" step="0.05"><span class="ts-val ts-lhV"></span></div></div>
+        <div class="ts-rand"><label>Strângere cuvinte (litere)</label><div class="ts-ctrl"><input type="range" class="ts-ls" min="-3" max="2" step="0.2"><span class="ts-val ts-lsV"></span></div></div>
+        <div class="term-setari-x">gata</div>
+      </div>`;
+    corp.appendChild(t);
+    const iesire=t.querySelector('#iesire-term');
+    const intr=t.querySelector('#cmd');
+    const setari=t.querySelector('.term-setari');
+
+    // ---- aplică tema + luminozitate + tipografie ----
+    function tonCol(hex, cant){
+      let h=hex.replace('#','');
+      let r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
+      const aj=v=>Math.max(0,Math.min(255,Math.round(v+(cant/100)*255)));
+      const hx=v=>v.toString(16).padStart(2,'0');
+      return '#'+hx(aj(r))+hx(aj(g))+hx(aj(b));
+    }
+    function aplica(){
+      const T=TEME[pref.tema]||TEME.noapte;
+      const L=pref.lumina;
+      // dacă ai ales culori libere, ele au prioritate
+      const baseBg = pref.bgLiber || T.bg;
+      const baseText = pref.textLiber || T.text;
+      const basePanou = pref.bgLiber ? tonCol(pref.bgLiber, 8) : T.panou;
+      t.style.setProperty('--t-bg', tonCol(baseBg, L));
+      t.style.setProperty('--t-text', tonCol(baseText, L*0.25));
+      t.style.setProperty('--t-panou', tonCol(basePanou, L));
+      t.style.setProperty('--t-linie', T.linie);
+      t.style.setProperty('--t-accent', T.accent);
+      t.style.setProperty('--t-cald', T.cald);
+      t.style.setProperty('--t-verde', T.verde);
+      t.style.setProperty('--t-stins', T.stins);
+      t.style.setProperty('--t-font', pref.font+'rem');
+      t.style.setProperty('--t-lh', pref.lh);
+      t.style.setProperty('--t-ls', pref.ls+'px');
+    }
+    // construiește butoanele de temă
+    const teme=t.querySelector('.ts-teme');
+    Object.entries(TEME).forEach(([cheie,T])=>{
+      const b=document.createElement('div');
+      b.className='ts-tema'+(pref.tema===cheie?' activa':'');
+      b.style.background=T.bg; b.style.color=T.text;
+      b.textContent=T.nume; b.dataset.t=cheie;
+      b.addEventListener('click',()=>{ pref.tema=cheie; pref.bgLiber=null; pref.textLiber=null; teme.querySelectorAll('.ts-tema').forEach(x=>x.classList.toggle('activa',x.dataset.t===cheie)); aplica(); salvPref(); });
+      teme.appendChild(b);
+    });
+    // palete libere de culoare (fundal + text)
+    function faSwTerm(cont, culori, set){
+      cont.innerHTML='';
+      culori.forEach(col=>{ const s=document.createElement('span'); s.className='pic2'; s.style.background=col; s.addEventListener('click',()=>{set(col);aplica();salvPref();}); cont.appendChild(s); });
+    }
+    faSwTerm(t.querySelector('.ts-swBg'), PAL_BG_TERM, c=>pref.bgLiber=c);
+    faSwTerm(t.querySelector('.ts-swInk'), PAL_INK_TERM, c=>pref.textLiber=c);
+    // cursoare
+    const rL=t.querySelector('.ts-lumina'), rF=t.querySelector('.ts-font'), rH=t.querySelector('.ts-lh'), rS=t.querySelector('.ts-ls');
+    function sincronizeaza(){
+      rL.value=pref.lumina; t.querySelector('.ts-luminaV').textContent=(pref.lumina>0?'+':'')+pref.lumina;
+      rF.value=pref.font; t.querySelector('.ts-fontV').textContent=Math.round(pref.font*16)+'px';
+      rH.value=pref.lh; t.querySelector('.ts-lhV').textContent=(+pref.lh).toFixed(2);
+      rS.value=pref.ls; t.querySelector('.ts-lsV').textContent=(+pref.ls).toFixed(1);
+    }
+    rL.addEventListener('input',()=>{pref.lumina=+rL.value;t.querySelector('.ts-luminaV').textContent=(pref.lumina>0?'+':'')+pref.lumina;aplica();salvPref();});
+    rF.addEventListener('input',()=>{pref.font=+rF.value;t.querySelector('.ts-fontV').textContent=Math.round(pref.font*16)+'px';aplica();salvPref();});
+    rH.addEventListener('input',()=>{pref.lh=+rH.value;t.querySelector('.ts-lhV').textContent=(+pref.lh).toFixed(2);aplica();salvPref();});
+    rS.addEventListener('input',()=>{pref.ls=+rS.value;t.querySelector('.ts-lsV').textContent=(+pref.ls).toFixed(1);aplica();salvPref();});
+
+    t.querySelector('.tu-setari').addEventListener('click',()=>{ setari.classList.toggle('deschis'); sincronizeaza(); });
+    t.querySelector('.term-setari-x').addEventListener('click',()=>setari.classList.remove('deschis'));
+    t.querySelector('.tu-curata').addEventListener('click',()=>{ iesire.innerHTML=''; intr.focus(); });
+    t.querySelector('.tu-ajutor').addEventListener('click',()=>{ executa('ajutor'); });
+
+    function salvPref(){ Memorie.salveaza({termPref:pref}); }
+    (function incarca(){ const s=Memorie.ia(); if(s&&s.termPref) pref={...pref,...s.termPref}; })();
+    aplica();
+
+    const istoric=[]; let idxIstoric=-1;
+
+    function scrie(text, clasa='ok'){
+      const d=document.createElement('div'); d.className='ln '+clasa; d.textContent=text;
+      iesire.appendChild(d); iesire.scrollTop=iesire.scrollHeight;
+    }
+    function ecouComanda(c){
+      const d=document.createElement('div'); d.className='ln';
+      d.innerHTML='<span class="prompt">› </span><span class="cmd-ecou"></span>';
+      d.querySelector('.cmd-ecou').textContent=c; iesire.appendChild(d);
+    }
+    // rând de ajutor: comanda + definiția pe ACELAȘI rând
+    function randComanda(comanda, descriere){
+      const d=document.createElement('div'); d.className='ln randc';
+      const c=document.createElement('span'); c.className='cmd-nume'; c.textContent=comanda;
+      const sp=document.createElement('span'); sp.className='cmd-desc'; sp.textContent=descriere;
+      d.appendChild(c); d.appendChild(sp);
+      iesire.appendChild(d); iesire.scrollTop=iesire.scrollHeight;
+    }
+
+    // rând pentru cuvinte învățate: cuvântul sus, descrierea dedesubt (toată)
+    function randInvatat(cuvant, descriere){
+      const d=document.createElement('div'); d.className='ln rand-inv';
+      const c=document.createElement('div'); c.className='inv-cuv'; c.textContent=cuvant;
+      const s=document.createElement('div'); s.className='inv-desc'; s.textContent=descriere;
+      d.appendChild(c); d.appendChild(s);
+      iesire.appendChild(d); iesire.scrollTop=iesire.scrollHeight;
+    }
+
+    // rând cu un fișier APĂSABIL — tap pe el îl deschide
+    function scrieFisier(f, extra){
+      const d=document.createElement('div'); d.className='ln rand-fis';
+      const n=document.createElement('span'); n.className='fis-link'; n.textContent=f.cale;
+      d.appendChild(n);
+      if(extra){ const e=document.createElement('span'); e.className='fis-extra'; e.textContent='  '+extra; d.appendChild(e); }
+      n.addEventListener('click',()=>{
+        if(f.tip==='folder'){ scrie('('+f.cale+' e un folder)','stins'); return; }
+        deschideCuApp(f);
+      });
+      iesire.appendChild(d); iesire.scrollTop=iesire.scrollHeight;
+    }
+
+    // poartă de parolă pentru comenzile din terminal (lacăt, nu seif)
+    function ceruParola(f){
+      if(!f || !f.parola) return true;
+      const p=prompt('Parola pentru '+f.cale+':');
+      if(p===null){ scrie('Anulat.','stins'); return false; }
+      if(p!==f.parola){ scrie('Parolă greșită.','err'); return false; }
+      return true;
+    }
+    function inlocVariabile(text){
+      const d=new Date();
+      const zile=['duminică','luni','marți','miercuri','joi','vineri','sâmbătă'];
+      const ore=d.getHours();
+      const salut = ore<12?'Bună dimineața':ore<18?'Bună ziua':'Bună seara';
+      const nume=(Memorie.ia().numeUtilizator)||'prietene';
+      return (text||'')
+        .replace(/\{nume\}/gi, nume)
+        .replace(/\{ora\}/gi, String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'))
+        .replace(/\{data\}/gi, d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'))
+        .replace(/\{zi\}/gi, zile[d.getDay()])
+        .replace(/\{salut\}/gi, salut);
+    }
+
+    // ---- termene: „vineri", „maine", „azi", „2026-07-04" → timestamp (sfârșitul zilei)
+    function parseTermen(cuv){
+      const c=(cuv||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      const d=new Date(); d.setHours(23,59,0,0);
+      if(c==='azi') return d.getTime();
+      if(c==='maine'){ d.setDate(d.getDate()+1); return d.getTime(); }
+      if(c==='poimaine'){ d.setDate(d.getDate()+2); return d.getTime(); }
+      const zile={duminica:0,luni:1,marti:2,miercuri:3,joi:4,vineri:5,sambata:6};
+      if(c in zile){
+        let dif=(zile[c]-d.getDay()+7)%7; if(dif===0) dif=7; // următoarea zi cu numele ăsta
+        d.setDate(d.getDate()+dif); return d.getTime();
+      }
+      const m=c.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if(m){ return new Date(+m[1], +m[2]-1, +m[3], 23,59).getTime(); }
+      return null;
+    }
+    function dataScurta(ts){
+      const d=new Date(ts);
+      const zile=['dum','lun','mar','mie','joi','vin','sâm'];
+      return zile[d.getDay()]+' '+String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0');
+    }
+    // avertizare: vibrație + bip scurt (când Logos e deschis)
+    function alerta(){
+      try{ if(navigator.vibrate) navigator.vibrate([120,60,120]); }catch(e){}
+      try{
+        const ctxA=new (window.AudioContext||window.webkitAudioContext)();
+        const o=ctxA.createOscillator(), g=ctxA.createGain();
+        o.connect(g); g.connect(ctxA.destination);
+        o.frequency.value=880; g.gain.value=0.06;
+        o.start(); setTimeout(()=>{o.stop(); ctxA.close();},180);
+      }catch(e){}
+    }
+
+    scrie('LOGOS · terminal','info');
+    scrie('Sistemul tău, comandat prin cuvinte.','stins');
+    scrie('Scrie  ajutor  ca să vezi ce poți face.','cald');
+    scrie('');
+
+    // ---- ajutor pentru găsirea fișierelor (diacritice + folder) ----
+    async function gasesteFis(nume){ return await Depozit.gaseste(nume); }
+
+    /* ====== COMENZILE ====== */
+    const comenzi = {
+      async ajutor(){
+        scrie('Comenzi Logos','info'); scrie('');
+        randComanda('ajutor','lista asta');
+        randComanda('lista','fișierele din depozit');
+        randComanda('nou <nume>','creează un fișier');
+        randComanda('scrie <nume> <text>','adaugă text în fișier');
+        randComanda('vezi <nume>','arată conținutul');
+        randComanda('sterge <nume>','șterge un fișier');
+        randComanda('redenume <v> <nou>','redenumește');
+        randComanda('cauta <text>','caută în toate fișierele');
+        randComanda('folder <nume>','creează un folder');
+        randComanda('foldere','arată folderele');
+        randComanda('muta <fis> <folder>','mută un fișier în folder');
+        randComanda('invata <cuv> = <comandă>','învață un cuvânt-acțiune');
+        randComanda('raspunde <cuv> = <text>','sistemul răspunde cu text');
+        randComanda('candcontine <cuv> = <text>','răspunde dacă mesajul conține cuvântul');
+        randComanda('dialog','cuvintele-cheie la care reacționează');
+        randComanda('uita <cuv>','uită un cuvânt (orice fel)');
+        randComanda('uitatot','uită tot ce a învățat');
+        randComanda('uitanume','uită numele tău');
+        randComanda('vocabular','cuvintele învățate de tine');
+        randComanda('asociaza <ext> <app.html>','ce app deschide ce tip');
+        randComanda('asocieri','vezi asocierile făcute');
+        randComanda('dezasociaza <ext>','desface asocierea (ex: dezasociaza md)');
+        randComanda('aplicatii','aplicațiile .html');
+        randComanda('ruleaza <nume>','pornește o aplicație');
+        randComanda('curata','curăță ecranul');
+        randComanda('despre','despre Logos');
+        scrie('');
+        scrie('— Unelte —','info');
+        randComanda('=<calcul>','calculează (ex: =2+2*10)');
+        randComanda('calc <calcul>','la fel, scris întreg');
+        randComanda('cronometru <min> <text>','te anunță peste X minute');
+        scrie('');
+        scrie('— Sarcini —','info');
+        randComanda('sarcina <text> până <zi>','adaugă (ex: sarcina pâine până vineri)');
+        randComanda('sarcini','lista + avertizare la întârziate');
+        randComanda('gata <nr>','bifează/debifează o sarcină');
+        randComanda('stergesarcina <nr>','șterge o sarcină');
+        scrie('');
+        scrie('— Bani —','info');
+        randComanda('cheltuit <sumă> <categorie>','notează o cheltuială');
+        randComanda('cheltuieli','cheltuielile lunii');
+        randComanda('bilant-bani','pe ce s-au dus banii (pe categorii)');
+        randComanda('stergecheltuieli','șterge tot (lună nouă)');
+        scrie('');
+        scrie('— Trusa tehnică —','info');
+        randComanda('procent 20 din 150','calcul procentual');
+        randComanda('converteste 10 km mile','unități (km/mile, kg/lb, c/f...)');
+        randComanda('medie 4 5 6','media numerelor');
+        randComanda('parola <lungime>','generează o parolă sigură');
+        randComanda('uuid','identificator unic');
+        randComanda('timestamp','ora Unix');
+        randComanda('hex <număr>','în hexazecimal și binar');
+        randComanda('base64 <text>','codează (base64 dec <cod> decodează)');
+        scrie('');
+        scrie('— Sistem & backup —','info');
+        randComanda('sistem','statistici Logos (fișiere, spațiu, învățate)');
+        randComanda('export','descarcă tot Logos ca fișier criptat pe telefon');
+        randComanda('incarca','adu un backup de pe telefon înapoi');
+        randComanda('import <fișier>','adu un backup salvat în depozit');
+        scrie('');
+        scrie('— Ritual & a doua minte —','info');
+        randComanda('azi','jurnalul de azi (azi <text> notează)');
+        randComanda('ieri','ce ai scris ieri');
+        randComanda('gand <text>','prinde un gând repede');
+        randComanda('ganduri','toate gândurile tale');
+        randComanda('ma numesc <nume>','spune-i lui Logos cine ești');
+        scrie('');
+        scrie('Lanțuri: leagă comenzi cu „apoi". Ex: nou azi.md apoi vezi azi.md','stins');
+        scrie('Învățare: invata salut = scrie jurnal.md Bună!','stins');
+        scrie('Variabile în răspunsuri: {nume} {ora} {data} {zi} {salut}','stins');
+        scrie('Ex: raspunde salut = {salut}, {nume}! E {ora}.','stins');
+      },
+      async lista(){
+        const f=await Depozit.toate();
+        if(!f.length){ scrie('Gol. Începe cu:  nou primul.md','stins'); return; }
+        scrie(f.length+' fișier(e):','info');
+        f.sort((a,b)=>a.cale.localeCompare(b.cale));
+        for(const x of f) scrieFisier(x, '('+x.tip+', '+volumFis(x.continut)+')');
+      },
+      async nou(arg){
+        if(!arg){ scrie('Spune un nume:  nou idei.md','err'); return; }
+        const nume=arg.trim().split(/\s+/)[0];
+        if(await Depozit.gaseste(nume)){ scrie('Există deja: '+nume,'err'); return; }
+        const tip = nume.endsWith('.md')?'md': /\.(mp3|wav|ogg|m4a)$/i.test(nume)?'audio': nume.endsWith('.html')?'html':'text';
+        await Depozit.scrie({cale:nume,tip,continut:'',creat:Date.now()});
+        scrie('Creat: '+nume,'cald');
+      },
+      async scrie(arg){
+        const m=(arg||'').match(/^(\S+)\s+([\s\S]+)$/);
+        if(!m){ scrie('Folosire:  scrie nume.md textul tău','err'); return; }
+        let f=await Depozit.gaseste(m[1]);
+        if(!f){ scrie('Nu există: '+m[1]+'  (creează: nou '+m[1]+')','err'); return; }
+        if(!ceruParola(f)) return;
+        f.continut=(f.continut?f.continut+'\n':'')+m[2];
+        await Depozit.scrie(f); scrie('Adăugat în '+f.cale,'cald');
+      },
+      async vezi(arg){
+        const f=await Depozit.gaseste((arg||'').trim().split(/\s+/)[0]);
+        if(!f){ scrie('Nu există','err'); return; }
+        if(!ceruParola(f)) return;
+        if(!f.continut){ scrie('('+f.cale+' e gol)','stins'); return; }
+        scrie('── '+f.cale+' ──','info'); scrie(f.continut,'ok'); scrie('──────────','info');
+      },
+      async sterge(arg){
+        const f=await Depozit.gaseste((arg||'').trim().split(/\s+/)[0]);
+        if(!f){ scrie('Nu există','err'); return; }
+        if(!ceruParola(f)) return;
+        await Depozit.sterge(f.cale); scrie('Șters: '+f.cale,'cald');
+      },
+      async redenume(arg){
+        const p=(arg||'').trim().split(/\s+/);
+        if(p.length<2){ scrie('Folosire:  redenume vechi.md nou.md','err'); return; }
+        const f=await Depozit.gaseste(p[0]);
+        if(!f){ scrie('Nu există: '+p[0],'err'); return; }
+        if(!ceruParola(f)) return;
+        const v=f.cale; await Depozit.sterge(v); f.cale=p[1]; await Depozit.scrie(f);
+        scrie(v+'  →  '+p[1],'cald');
+      },
+      async cauta(arg){
+        const q=(arg||'').trim().toLowerCase();
+        if(!q){ scrie('Folosire:  cauta cuvânt','err'); return; }
+        const f=await Depozit.toate(); let gasit=0;
+        for(const x of f){
+          const c=(x.continut||'').toLowerCase();
+          if(x.cale.toLowerCase().includes(q) || c.includes(q)){
+            gasit++;
+            let unde=''; const i=c.indexOf(q);
+            if(i>=0){ const s=Math.max(0,i-15); unde='…'+(x.continut||'').slice(s,i+q.length+15).replace(/\n/g,' ')+'…'; }
+            scrieFisier(x, unde);
+          }
+        }
+        scrie(gasit?('Găsit în '+gasit+' fișier(e).'):'Nimic găsit.', gasit?'info':'stins');
+      },
+      async folder(arg){
+        const nume=(arg||'').trim().split(/\s+/)[0];
+        if(!nume){ scrie('Folosire:  folder Jurnal','err'); return; }
+        const cale=nume.endsWith('/')?nume:nume+'/';
+        if(await Depozit.gaseste(cale)){ scrie('Există deja','err'); return; }
+        await Depozit.scrie({cale, tip:'folder', continut:'', creat:Date.now()});
+        scrie('Folder creat: '+cale,'cald');
+      },
+      async foldere(){
+        const f=(await Depozit.toate()).filter(x=>x.tip==='folder');
+        if(!f.length){ scrie('Niciun folder. Creează:  folder Jurnal','stins'); return; }
+        scrie('Foldere:','info');
+        for(const x of f) scrie('  '+x.cale,'ok');
+      },
+      async muta(arg){
+        const txt=(arg||'').trim();
+        const sp=txt.lastIndexOf(' ');
+        if(sp===-1){ scrie('Folosire:  muta nume fisier  Folder','err'); return; }
+        const numeFis=txt.slice(0,sp).trim();      // poate avea spații
+        const folderNume=txt.slice(sp+1).trim();
+        const f=await Depozit.gaseste(numeFis);
+        if(!f){ scrie('Nu există fișierul: '+numeFis,'err'); return; }
+        // verifică folderul (sau îl creează din mers)
+        const folder=folderNume.endsWith('/')?folderNume:folderNume+'/';
+        let fol=await Depozit.gaseste(folder);
+        if(!fol){
+          await Depozit.scrie({cale:folder,tip:'folder',continut:'',creat:Date.now()});
+          scrie('(am creat folderul '+folder+')','stins');
+        }
+        const v=f.cale;
+        const numeNou=folder+f.cale.split('/').pop();
+        if(v===numeNou){ scrie('Fișierul e deja acolo.','stins'); return; }
+        await Depozit.sterge(v); f.cale=numeNou; await Depozit.scrie(f);
+        scrie(v+'  →  '+numeNou,'cald');
+      },
+      async invata(arg){
+        const m=(arg||'').match(/^(\S+)\s*=\s*([\s\S]+)$/);
+        if(!m){ scrie('Folosire:  invata salut = scrie jurnal.md Bună!','err'); return; }
+        const cuv=m[1].toLowerCase(), actiune=m[2].trim();
+        const voc=(Memorie.ia().vocabular)||{};
+        if(comenzi[cuv]){ scrie('„'+cuv+'" e deja comandă de sistem','err'); return; }
+        voc[cuv]=actiune; await Memorie.salveaza({vocabular:voc});
+        scrie('Am învățat: '+cuv+'  →  '+actiune,'cald');
+      },
+      async uita(arg){
+        const cuv=(arg||'').trim().toLowerCase();
+        if(!cuv){ scrie('Folosire:  uita salut','err'); return; }
+        const voc=(Memorie.ia().vocabular)||{};
+        const rasp=(Memorie.ia().raspunsuri)||{};
+        const ck=(Memorie.ia().cuvinteCheie)||{};
+        let sters=false;
+        if(voc[cuv]){ delete voc[cuv]; await Memorie.salveaza({vocabular:voc}); sters=true; }
+        if(rasp[cuv]){ delete rasp[cuv]; await Memorie.salveaza({raspunsuri:rasp}); sters=true; }
+        if(ck[cuv]){ delete ck[cuv]; await Memorie.salveaza({cuvinteCheie:ck}); sters=true; }
+        scrie(sters?('Am uitat: '+cuv):('Nu cunosc: '+cuv), sters?'cald':'err');
+      },
+      async uitatot(){
+        await Memorie.salveaza({vocabular:{}, raspunsuri:{}, cuvinteCheie:{}});
+        scrie('Am uitat tot ce am învățat. Pornim de la zero.','cald');
+      },
+      async raspunde(arg){
+        const m=(arg||'').match(/^([\s\S]+?)\s*=\s*([\s\S]+)$/);
+        if(!m){ scrie('Folosire:  raspunde salut = Bună!','err'); return; }
+        const cuv=m[1].trim().toLowerCase(), text=m[2].trim();
+        if(comenzi[cuv]){ scrie('„'+cuv+'" e deja comandă de sistem','err'); return; }
+        const rasp=(Memorie.ia().raspunsuri)||{};
+        rasp[cuv]=text; await Memorie.salveaza({raspunsuri:rasp});
+        scrie('Am învățat să răspund: '+cuv+'  →  '+text,'cald');
+      },
+      async vocabular(){
+        const voc=(Memorie.ia().vocabular)||{};
+        const rasp=(Memorie.ia().raspunsuri)||{};
+        const cv=Object.keys(voc), cr=Object.keys(rasp);
+        if(!cv.length && !cr.length){ scrie('Niciun cuvânt învățat.','stins'); scrie('Acțiune:  invata salut = scrie jurnal.md Bună!','stins'); scrie('Răspuns:  raspunde salut = Bună!','stins'); return; }
+        if(cv.length){ scrie('Cuvinte care fac ceva:','info'); for(const c of cv) randInvatat(c, voc[c]); }
+        if(cr.length){ scrie('Cuvinte la care răspund:','info'); for(const c of cr) randInvatat(c, rasp[c]); }
+      },
+      async asociaza(arg){
+        const p=(arg||'').trim().split(/\s+/);
+        if(p.length<2){
+          // fără al doilea argument → arată asocierile
+          const asoc=(Memorie.ia().asocieri)||{};
+          const chei=Object.keys(asoc);
+          if(!chei.length){ scrie('Nicio asociere. Ex:  asociaza md Editorul.html','stins'); return; }
+          scrie('Asocieri (tip → aplicație):','info');
+          for(const e of chei) randInvatat('.'+e, asoc[e]);
+          scrie('Ca să desfaci:  dezasociaza md','stins');
+          return;
+        }
+        const ext=p[0].replace('.','').toLowerCase();
+        const app=await Depozit.gaseste(p[1]);
+        if(!app || app.tip!=='html'){ scrie('Nu găsesc aplicația: '+p[1],'err'); return; }
+        const asoc=(Memorie.ia().asocieri)||{}; asoc[ext]=app.cale;
+        await Memorie.salveaza({asocieri:asoc});
+        scrie('.'+ext+'  se va deschide în  '+app.cale,'cald');
+      },
+      async dezasociaza(arg){
+        const ext=(arg||'').trim().replace('.','').toLowerCase();
+        if(!ext){ scrie('Folosire:  dezasociaza md','err'); return; }
+        const asoc=(Memorie.ia().asocieri)||{};
+        if(!asoc[ext]){ scrie('.'+ext+' nu e asociat cu nimic.','stins'); return; }
+        const vechi=asoc[ext]; delete asoc[ext];
+        await Memorie.salveaza({asocieri:asoc});
+        scrie('Am desfăcut: .'+ext+' nu se mai deschide automat în '+vechi,'cald');
+        scrie('Acum .'+ext+' se deschide în vizualizatorul obișnuit.','stins');
+      },
+      async asocieri(){
+        const asoc=(Memorie.ia().asocieri)||{};
+        const chei=Object.keys(asoc);
+        if(!chei.length){ scrie('Nicio asociere. Ex:  asociaza md Editorul.html','stins'); return; }
+        scrie('Asocieri (tip → aplicație):','info');
+        for(const e of chei) randInvatat('.'+e, asoc[e]);
+        scrie('Ca să desfaci:  dezasociaza md','stins');
+      },
+      async aplicatii(){
+        const apps=(await Depozit.toate()).filter(x=>x.tip==='html');
+        if(!apps.length){ scrie('Nicio aplicație. Deschide „Aplicații" și adaugă un .html','stins'); return; }
+        scrie(apps.length+' aplicație(i):','info');
+        for(const a of apps) scrieFisier(a, '('+volumFis(a.continut)+')');
+      },
+      async ruleaza(arg){
+        const f=await Depozit.gaseste((arg||'').trim());
+        if(!f){ scrie('Nu există','err'); return; }
+        if(f.tip!=='html'){ scrie(f.cale+' nu e aplicație .html','err'); return; }
+        ruleazaOaspete(f.cale, f.continut); scrie('Pornit: '+f.cale,'cald');
+      },
+      async curata(){ iesire.innerHTML=''; },
+      async despre(){
+        scrie('LOGOS','info');
+        scrie('Un microsistem personal, în browser, pe Android.','ok');
+        scrie('Fișierele tale trăiesc în telefon. Offline. Al tău.','ok');
+        scrie('Din greacă: cuvânt, rațiune, ordine.','stins');
+      },
+
+      // ---- BACKUP: salvează/aduce tot Logos (criptat cu parola master) ----
+      async export(){
+        const fisiere=(await Depozit.toate()).filter(x=>x.tip!=='backup');
+        const stare=Memorie.ia();
+        const pachet={ logos_backup:1, data:new Date().toISOString(), fisiere, memorie:stare };
+        const criptat=await Cripto.encripteaza(JSON.stringify(pachet));
+        const invelis={ logos_backup_criptat:1, data:criptat };
+        const json=JSON.stringify(invelis);
+        const nume='logos-backup-'+new Date().toISOString().slice(0,10)+'.json';
+        // descarcă un fișier REAL pe telefon (în Descărcări) — iese din browser, dar criptat
+        try{
+          const blob=new Blob([json],{type:'application/json'});
+          const url=URL.createObjectURL(blob);
+          const a=document.createElement('a');
+          a.href=url; a.download=nume;
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(()=>URL.revokeObjectURL(url),1000);
+          scrie('Backup criptat descărcat: '+nume+'  ('+volumFis(json)+')','cald');
+          scrie('E criptat cu parola master — fără ea, fișierul e inutil. Pune-l la loc sigur (card, cloud).','stins');
+        }catch(e){
+          scrie('Nu am putut descărca. Salvez în depozit ca rezervă.','err');
+          await Depozit.scrie({cale:nume, tip:'backup', continut:json, creat:Date.now()});
+        }
+      },
+      async incarca(){
+        // deschide selectorul de fișiere al telefonului
+        const inp=document.createElement('input');
+        inp.type='file'; inp.accept='.json,application/json';
+        inp.addEventListener('change',async()=>{
+          const file=inp.files[0]; if(!file) return;
+          const r=new FileReader();
+          r.onload=async()=>{
+            let invelis;
+            try{ invelis=JSON.parse(r.result); }catch(e){ scrie('Fișierul nu e un backup valid.','err'); return; }
+            let pachet=null;
+            if(invelis.logos_backup_criptat){
+              try{ pachet=JSON.parse(await Cripto.decripteaza(invelis.data)); }
+              catch(e){ scrie('Nu am putut decripta backup-ul (parolă greșită sau fișier corupt).','err'); return; }
+            } else if(invelis.logos_backup){
+              pachet=invelis; // backup vechi, necriptat — îl acceptăm pentru compatibilitate
+            }
+            if(!pachet || !pachet.logos_backup){ scrie('Nu e un backup Logos.','err'); return; }
+            let n=0;
+            for(const fis of (pachet.fisiere||[])){ if(fis.tip!=='backup'){ await Depozit.scrie(fis); n++; } }
+            if(pachet.memorie){ await Memorie.salveaza(pachet.memorie); }
+            scrie('Am adus '+n+' fișier(e) din backup-ul de pe telefon.','cald');
+            scrie('Reîncarcă Logos ca să se vadă tot.','stins');
+          };
+          r.readAsText(file);
+        });
+        inp.click();
+        scrie('Alege fișierul de backup de pe telefon…','stins');
+      },
+      async import(arg){
+        // import dintr-un backup salvat în depozit (rezervă, dacă există)
+        const nume=(arg||'').trim();
+        if(!nume){ scrie('Folosire:  import nume.json   (sau folosește „incarca" pentru un fișier de pe telefon)','err'); return; }
+        const f=await Depozit.gaseste(nume);
+        if(!f){ scrie('Nu găsesc: '+nume,'err'); return; }
+        let invelis;
+        try{ invelis=JSON.parse(f.continut); }catch(e){ scrie('Fișierul nu e un backup valid.','err'); return; }
+        let pachet=null;
+        if(invelis.logos_backup_criptat){
+          try{ pachet=JSON.parse(await Cripto.decripteaza(invelis.data)); }
+          catch(e){ scrie('Nu am putut decripta backup-ul (parolă greșită sau fișier corupt).','err'); return; }
+        } else if(invelis.logos_backup){
+          pachet=invelis;
+        }
+        if(!pachet || !pachet.logos_backup){ scrie('Nu e un backup Logos.','err'); return; }
+        let n=0;
+        for(const fis of (pachet.fisiere||[])){ if(fis.tip!=='backup'){ await Depozit.scrie(fis); n++; } }
+        if(pachet.memorie){ await Memorie.salveaza(pachet.memorie); }
+        scrie('Am adus '+n+' fișier(e) din backup.','cald');
+        scrie('(reîncarcă Logos ca să se vadă tot)','stins');
+      },
+
+      // ---- STATISTICI: Logos se cunoaște ----
+      async sistem(){
+        const f=(await Depozit.toate());
+        const fisiere=f.filter(x=>x.tip!=='folder' && x.tip!=='backup');
+        const foldere=f.filter(x=>x.tip==='folder');
+        const apps=f.filter(x=>x.tip==='html');
+        let octeti=0; for(const x of f){ try{octeti+=new Blob([x.continut||'']).size;}catch(e){} }
+        const st=Memorie.ia();
+        const voc=Object.keys(st.vocabular||{}).length;
+        const rasp=Object.keys(st.raspunsuri||{}).length;
+        const ck=Object.keys(st.cuvinteCheie||{}).length;
+        scrie('LOGOS · stare','info');
+        randInvatat('Fișiere', fisiere.length+' (din care '+apps.length+' aplicații)');
+        randInvatat('Foldere', ''+foldere.length);
+        randInvatat('Spațiu folosit', volumFis('x'.repeat(octeti)));
+        randInvatat('Cuvinte învățate', (voc+rasp+ck)+'  (acțiuni '+voc+', răspunsuri '+rasp+', cheie '+ck+')');
+        randInvatat('Nume', st.numeUtilizator||'(nesetat)');
+        if(st.primaPornire){
+          const zile=Math.max(1,Math.round((Date.now()-st.primaPornire)/864e5));
+          randInvatat('Folosești Logos de', zile+' zi(le)');
+        }
+      },
+
+      // ---- CALCULATOR ----
+      async calc(arg){
+        const ex=(arg||'').trim();
+        if(!ex){ scrie('Folosire:  calc 2+2*10','err'); return; }
+        // doar cifre și operatori — sigur
+        if(!/^[\d\s+\-*/().,%]+$/.test(ex)){ scrie('Doar numere și + - * / ( ) % sunt permise.','err'); return; }
+        try{
+          const r=Function('"use strict";return ('+ex.replace(/,/g,'.')+')')();
+          scrie(ex+' = '+r,'cald');
+        }catch(e){ scrie('Nu pot calcula asta.','err'); }
+      },
+
+      // ---- MEMENTO / CRONOMETRU ----
+      async cronometru(arg){
+        const p=(arg||'').trim().match(/^([\d.,]+)\s*(.*)$/);
+        if(!p){ scrie('Folosire:  cronometru 10 cumpără pâine','err'); return; }
+        const min=parseFloat(p[1].replace(',','.')); const text=p[2]||'';
+        if(isNaN(min)||min<=0){ scrie('Pune un număr de minute.','err'); return; }
+        Temporizatoare.porneste(min, text);
+        scrie('Temporizator pornit: '+min+' min'+(text?('  — '+text):''),'cald');
+        scrie('Vezi timpul rămas sus, în bară. Apasă ✕ ca să-l anulezi.','stins');
+      },
+
+      // ---- TASK MANAGER: liste de sarcini ----
+      // ---- SARCINI cu termene ----
+      async sarcina(arg){
+        let text=(arg||'').trim();
+        if(!text){ scrie('Folosire:  sarcina cumpără pâine până vineri','err'); return; }
+        // caută „până <termen>" la sfârșit
+        let termen=null;
+        const m=text.match(/\s+(?:pana|până)\s+(\S+)\s*$/i);
+        if(m){
+          termen=parseTermen(m[1]);
+          if(termen) text=text.slice(0,m.index).trim();
+        }
+        const st=Memorie.ia(); const sarcini=st.sarcini||[];
+        sarcini.push({text, gata:false, creat:Date.now(), termen});
+        await Memorie.salveaza({sarcini});
+        scrie('Adăugat: '+text+(termen?('  (până '+dataScurta(termen)+')'):''),'cald');
+      },
+      async sarcini(){
+        const sarcini=(Memorie.ia().sarcini)||[];
+        if(!sarcini.length){ scrie('Nicio sarcină. Adaugă:  sarcina cumpără pâine până vineri','stins'); return; }
+        scrie('Sarcinile tale:','info');
+        const acum=Date.now(); let intarziate=0;
+        sarcini.forEach((s,i)=>{
+          let extra='', cls=s.gata?'stins':'ok';
+          if(s.termen && !s.gata){
+            if(s.termen < acum){ extra='  ⚠ ÎNTÂRZIAT ('+dataScurta(s.termen)+')'; cls='err'; intarziate++; }
+            else { extra='  (până '+dataScurta(s.termen)+')'; }
+          }
+          scrie('  '+(i+1)+'. '+(s.gata?'✓ ':'○ ')+s.text+extra, cls);
+        });
+        if(intarziate){ alerta(); }
+      },
+      async gata(arg){
+        const n=parseInt((arg||'').trim())-1;
+        const st=Memorie.ia(); const sarcini=st.sarcini||[];
+        if(isNaN(n)||!sarcini[n]){ scrie('Folosire:  gata 1   (numărul sarcinii)','err'); return; }
+        sarcini[n].gata=!sarcini[n].gata;
+        await Memorie.salveaza({sarcini});
+        scrie((sarcini[n].gata?'✓ Făcut: ':'○ Reactivat: ')+sarcini[n].text,'cald');
+      },
+      async stergesarcina(arg){
+        const n=parseInt((arg||'').trim())-1;
+        const st=Memorie.ia(); const sarcini=st.sarcini||[];
+        if(isNaN(n)||!sarcini[n]){ scrie('Folosire:  stergesarcina 1','err'); return; }
+        const t=sarcini[n].text; sarcini.splice(n,1);
+        await Memorie.salveaza({sarcini});
+        scrie('Șters: '+t,'cald');
+      },
+
+      // ---- CHELTUIELI ----
+      async cheltuit(arg){
+        const m=(arg||'').trim().match(/^([\d.,]+)\s+(.+)$/);
+        if(!m){ scrie('Folosire:  cheltuit 50 mâncare','err'); return; }
+        const suma=parseFloat(m[1].replace(',','.'));
+        if(isNaN(suma)){ scrie('Suma nu e un număr.','err'); return; }
+        const categorie=m[2].trim().toLowerCase();
+        const st=Memorie.ia(); const chelt=st.cheltuieli||[];
+        chelt.push({suma, categorie, cand:Date.now()});
+        await Memorie.salveaza({cheltuieli:chelt});
+        scrie('Notat: '+suma+' pe '+categorie,'cald');
+      },
+      async cheltuieli(){
+        const chelt=(Memorie.ia().cheltuieli)||[];
+        if(!chelt.length){ scrie('Nicio cheltuială. Notează:  cheltuit 50 mâncare','stins'); return; }
+        const d=new Date(); const lunaAsta=d.getFullYear()+'-'+d.getMonth();
+        const aleLunii=chelt.filter(c=>{ const x=new Date(c.cand); return (x.getFullYear()+'-'+x.getMonth())===lunaAsta; });
+        scrie('Cheltuielile lunii (ultimele 15):','info');
+        aleLunii.slice(-15).forEach(c=>{
+          const x=new Date(c.cand);
+          scrie('  '+String(x.getDate()).padStart(2,'0')+'.'+String(x.getMonth()+1).padStart(2,'0')+'  '+c.suma+'  '+c.categorie,'ok');
+        });
+      },
+      async 'bilant-bani'(){
+        const chelt=(Memorie.ia().cheltuieli)||[];
+        const d=new Date(); const lunaAsta=d.getFullYear()+'-'+d.getMonth();
+        const aleLunii=chelt.filter(c=>{ const x=new Date(c.cand); return (x.getFullYear()+'-'+x.getMonth())===lunaAsta; });
+        if(!aleLunii.length){ scrie('Nicio cheltuială luna asta.','stins'); return; }
+        const pe={}; let total=0;
+        for(const c of aleLunii){ pe[c.categorie]=(pe[c.categorie]||0)+c.suma; total+=c.suma; }
+        scrie('Bilanțul lunii:','info');
+        Object.entries(pe).sort((a,b)=>b[1]-a[1]).forEach(([cat,s])=>{
+          const proc=Math.round(s/total*100);
+          randInvatat(cat, s+'  ('+proc+'%)');
+        });
+        scrie('TOTAL: '+total,'cald');
+      },
+      async stergecheltuieli(){
+        await Memorie.salveaza({cheltuieli:[]});
+        scrie('Cheltuielile au fost șterse. Lună nouă, foaie albă.','cald');
+      },
+
+      // ---- TRUSA TEHNICĂ ----
+      async procent(arg){
+        const m=(arg||'').match(/([\d.,]+)\s*(?:%|la suta)?\s*din\s*([\d.,]+)/i);
+        if(!m){ scrie('Folosire:  procent 20 din 150','err'); return; }
+        const p=parseFloat(m[1].replace(',','.')), t=parseFloat(m[2].replace(',','.'));
+        scrie(p+'% din '+t+' = '+(p*t/100),'cald');
+      },
+      async converteste(arg){
+        const m=(arg||'').trim().match(/^([\d.,]+)\s*(\S+)(?:\s+(?:in|în))?\s+(\S+)$/i);
+        if(!m){ scrie('Folosire:  converteste 10 km mile','err'); return; }
+        const v=parseFloat(m[1].replace(',','.'));
+        const din=m[2].toLowerCase(), spre=m[3].toLowerCase();
+        const R={ 'km:mile':0.621371,'mile:km':1.60934,'kg:lb':2.20462,'lb:kg':0.453592,
+                  'm:ft':3.28084,'ft:m':0.3048,'cm:inch':0.393701,'inch:cm':2.54,'l:gal':0.264172,'gal:l':3.78541 };
+        if(din==='c'&&spre==='f'){ scrie(v+'°C = '+(v*9/5+32).toFixed(1)+'°F','cald'); return; }
+        if(din==='f'&&spre==='c'){ scrie(v+'°F = '+((v-32)*5/9).toFixed(1)+'°C','cald'); return; }
+        const r=R[din+':'+spre];
+        if(!r){ scrie('Știu: km↔mile, kg↔lb, m↔ft, cm↔inch, l↔gal, c↔f','err'); return; }
+        scrie(v+' '+din+' = '+(v*r).toFixed(3)+' '+spre,'cald');
+      },
+      async medie(arg){
+        const nr=(arg||'').trim().split(/[\s,]+/).map(x=>parseFloat(x.replace(',','.'))).filter(x=>!isNaN(x));
+        if(!nr.length){ scrie('Folosire:  medie 4 5 6 7','err'); return; }
+        const s=nr.reduce((a,b)=>a+b,0);
+        scrie('Media a '+nr.length+' numere = '+(s/nr.length).toFixed(2)+'   (suma '+s+')','cald');
+      },
+      async parola(arg){
+        const lung=Math.min(Math.max(parseInt(arg)||14,8),40);
+        const set='abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*';
+        let p=''; const rnd=new Uint32Array(lung); crypto.getRandomValues(rnd);
+        for(let i=0;i<lung;i++) p+=set[rnd[i]%set.length];
+        scrie('Parolă ('+lung+'): '+p,'cald');
+        scrie('(selecteaz-o și copiaz-o acum)','stins');
+      },
+      async uuid(){
+        const u=crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return (c==='x'?r:(r&0x3|0x8)).toString(16);});
+        scrie(u,'cald');
+      },
+      async timestamp(){
+        scrie('Unix: '+Math.floor(Date.now()/1000)+'   (milisecunde: '+Date.now()+')','cald');
+      },
+      async hex(arg){
+        const n=parseInt((arg||'').trim());
+        if(isNaN(n)){ scrie('Folosire:  hex 255','err'); return; }
+        scrie(n+' = 0x'+n.toString(16).toUpperCase()+'  = bin '+n.toString(2),'cald');
+      },
+      async base64(arg){
+        const t=(arg||'').trim();
+        if(!t){ scrie('Folosire:  base64 text   (sau base64 dec <cod>)','err'); return; }
+        if(t.startsWith('dec ')){
+          try{ scrie(decodeURIComponent(escape(atob(t.slice(4).trim()))),'cald'); }
+          catch(e){ scrie('Nu pot decoda.','err'); }
+        } else {
+          scrie(btoa(unescape(encodeURIComponent(t))),'cald');
+        }
+      },
+
+      // ---- RITUAL: jurnalul zilei ----
+      async azi(arg){
+        const d=new Date();
+        const data=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+        const nume='jurnal-'+data+'.md';
+        const zile=['duminică','luni','marți','miercuri','joi','vineri','sâmbătă'];
+        const ore=d.getHours();
+        const salut = ore<12?'Bună dimineața':ore<18?'Bună ziua':'Bună seara';
+        let f=await Depozit.gaseste(nume);
+        if(!f){
+          f={cale:nume,tip:'md',creat:Date.now(),continut:'# '+data+'  ('+zile[d.getDay()]+')\n'};
+          await Depozit.scrie(f);
+        }
+        // dacă a dat și text, îl adaugă cu ora
+        if(arg && arg.trim()){
+          const ora=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+          f.continut += '\n'+ora+' — '+arg.trim();
+          await Depozit.scrie(f);
+          scrie(salut+'. Am notat în jurnalul de azi.','cald');
+        } else {
+          scrie(salut+', '+(Memorie.ia().numeUtilizator||'prietene')+'.','cald');
+          // avertizare: sarcini scadente azi sau întârziate
+          const sarcini=(Memorie.ia().sarcini)||[];
+          const sfZi=new Date(); sfZi.setHours(23,59,59,999);
+          const urgente=sarcini.filter(s=>!s.gata && s.termen && s.termen<=sfZi.getTime());
+          if(urgente.length){
+            scrie('','ok');
+            scrie('⚠ Ai '+urgente.length+' sarcină(i) scadente:','err');
+            urgente.forEach(s=>{
+              const int=s.termen<Date.now();
+              scrie('  ○ '+s.text+(int?'  (ÎNTÂRZIAT — era '+dataScurta(s.termen)+')':'  (azi)'), int?'err':'cald');
+            });
+            alerta();
+            scrie('','ok');
+          }
+          scrie('Jurnalul de azi: '+nume,'info');
+          if(f.continut.trim().split('\n').length>1){ scrie(f.continut,'ok'); }
+          else { scrie('E gol încă. Scrie:  azi gândul tău de azi','stins'); }
+        }
+      },
+      async ieri(){
+        const d=new Date(Date.now()-864e5);
+        const data=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+        const f=await Depozit.gaseste('jurnal-'+data+'.md');
+        if(!f || !f.continut.trim()){ scrie('Nimic scris ieri.','stins'); return; }
+        scrie('── ieri ('+data+') ──','info'); scrie(f.continut,'ok'); scrie('──────────','info');
+      },
+      // ---- A DOUA MINTE: captură rapidă de gânduri ----
+      async gand(arg){
+        if(!arg || !arg.trim()){ scrie('Folosire:  gand ce-ți trece prin minte','err'); return; }
+        let f=await Depozit.gaseste('ganduri.md');
+        if(!f){ f={cale:'ganduri.md',tip:'md',creat:Date.now(),continut:'# Gânduri\n'}; }
+        const d=new Date();
+        const cand=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+        f.continut += '\n- ['+cand+'] '+arg.trim();
+        await Depozit.scrie(f);
+        scrie('Prins. (în ganduri.md)','cald');
+      },
+      async ganduri(){
+        const f=await Depozit.gaseste('ganduri.md');
+        if(!f || !f.continut.trim()){ scrie('Niciun gând încă. Aruncă unul:  gand ...','stins'); return; }
+        scrie(f.continut,'ok');
+      },
+      // ---- Logos te cunoaște ----
+      async numesc(arg){
+        // acceptă „ma numesc Vasea" sau „numesc Vasea"
+        let nume=(arg||'').trim();
+        if(/^numesc\s+/i.test(nume)) nume=nume.replace(/^numesc\s+/i,'').trim();
+        if(!nume){ scrie('Folosire:  ma numesc Vasea','err'); return; }
+        await Memorie.salveaza({numeUtilizator:nume});
+        scrie('Te-am ținut minte, '+nume+'. Bine ai venit în Logos.','cald');
+      },
+      async uitanume(){
+        await Memorie.salveaza({numeUtilizator:''});
+        scrie('Am uitat numele. Spune-mi din nou:  ma numesc ...','cald');
+      },
+      // ---- cuvinte-cheie: răspunde dacă mesajul CONȚINE un cuvânt ----
+      async candcontine(arg){
+        const m=(arg||'').match(/^([\s\S]+?)\s*=\s*([\s\S]+)$/);
+        if(!m){ scrie('Folosire:  candcontine vreme = Azi pare o zi bună.','err'); return; }
+        const cheie=m[1].trim().toLowerCase(), text=m[2].trim();
+        const ck=(Memorie.ia().cuvinteCheie)||{};
+        ck[cheie]=text; await Memorie.salveaza({cuvinteCheie:ck});
+        scrie('Am învățat: dacă scrii ceva cu „'+cheie+'" → '+text,'cald');
+      },
+      async dialog(){
+        const ck=(Memorie.ia().cuvinteCheie)||{};
+        const chei=Object.keys(ck);
+        if(!chei.length){ scrie('Niciun cuvânt-cheie. Încearcă:  candcontine vreme = E o zi bună.','stins'); return; }
+        scrie('Reacționez la cuvintele:','info');
+        for(const c of chei) randInvatat(c, ck[c]);
+      },
+    };
+
+    // ---- potrivire deșteaptă (offline) ----
+    // scoate diacritice, semne, majuscule, și cuvinte de umplutură
+    const UMPLUTURA=['te','rog','oare','spune','spunemi','spune-mi','imi','îmi','mi','ma','mă','poti','poți','vrei','as','aș','vrea','hai','deci','cam','asa','așa','un','o','de','la','pe','ce','e','ii','îi'];
+    function normriz(s){
+      return (s||'').toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g,'')  // fără diacritice
+        .replace(/[?!.,;:„""''()]/g,' ')                    // fără semne
+        .replace(/\s+/g,' ').trim();
+    }
+    function miez(s){
+      // scoate cuvintele de umplutură, lasă miezul întrebării
+      return normriz(s).split(' ').filter(c=>c && !UMPLUTURA.includes(c)).join(' ');
+    }
+    // alege un răspuns dintre variante separate cu |
+    function alegeRaspuns(text){
+      if(text.includes('|')){
+        const variante=text.split('|').map(x=>x.trim()).filter(Boolean);
+        return variante[Math.floor(Math.random()*variante.length)];
+      }
+      return text;
+    }
+
+    async function executaUna(txt){
+      const sp=txt.indexOf(' ');
+      let nume=(sp===-1?txt:txt.slice(0,sp)).toLowerCase();
+      let arg = sp===-1?'':txt.slice(sp+1);
+      // scurtătură: =2+2 → calc
+      if(txt.trim().startsWith('=')){ nume='calc'; arg=txt.trim().slice(1); }
+      // comenzi din două cuvinte: „ma numesc Vasea"
+      if(nume==='ma' && /^numesc\b/i.test(arg)){ nume='numesc'; arg=arg.replace(/^numesc\s*/i,''); }
+      const frazaIntreaga=txt.trim().toLowerCase();
+      const fraza_n=normriz(txt);        // normalizată (fără diacritice/semne)
+      const fraza_miez=miez(txt);        // doar miezul (fără umplutură)
+
+      // 1) răspunsuri exacte (cu variabile + potrivire iertătoare + variante |)
+      const rasp=(Memorie.ia().raspunsuri)||{};
+      for(const cheie of Object.keys(rasp)){
+        const ck_n=normriz(cheie);
+        if(frazaIntreaga===cheie || fraza_n===ck_n || fraza_miez===miez(cheie)){
+          scrie(inlocVariabile(alegeRaspuns(rasp[cheie])),'cald'); return;
+        }
+      }
+      if(rasp[nume]){ scrie(inlocVariabile(alegeRaspuns(rasp[nume])),'cald'); return; }
+
+      // 2) cuvinte-acțiune învățate
+      const voc=(Memorie.ia().vocabular)||{};
+      if(voc[frazaIntreaga]){ await executa(voc[frazaIntreaga]); return; }
+      if(voc[nume]){
+        // dacă ai scris ceva după cuvânt (ex: „cr 10 pâine"), îl duce mai departe
+        const rest=(sp===-1)?'':txt.slice(sp+1).trim();
+        await executa(voc[nume]+(rest?(' '+rest):'')); return;
+      }
+
+      // 3) comenzi de sistem
+      const fn=comenzi[nume];
+      if(fn){ try{ await fn(arg); }catch(e){ scrie('Eroare: '+e.message,'err'); } return; }
+
+      // 4) cuvinte-cheie: dacă mesajul CONȚINE un cuvânt (mai multe cu |)
+      const ck=(Memorie.ia().cuvinteCheie)||{};
+      for(const cheie of Object.keys(ck)){
+        // cheia poate avea mai multe cuvinte: „vreme|afara|frig"
+        const cuvinte=cheie.split('|').map(x=>normriz(x)).filter(Boolean);
+        if(cuvinte.some(c=>fraza_n.includes(c))){
+          scrie(inlocVariabile(alegeRaspuns(ck[cheie])),'cald'); return;
+        }
+      }
+      scrie('Necunoscut: '+nume+'   (scrie: ajutor)','err');
+    }
+    async function executa(linie){
+      const txt=(linie||'').trim(); if(!txt) return;
+      // lanțuri: împarte pe „ apoi "
+      const bucati=txt.split(/\s+apoi\s+/i);
+      for(const b of bucati){ await executaUna(b.trim()); }
+    }
+
+    intr.addEventListener('keydown',async e=>{
+      if(e.key==='Enter'){ const v=intr.value; intr.value=''; if(v.trim()){istoric.push(v.trim());idxIstoric=istoric.length;ecouComanda(v.trim());} executa(v); }
+      else if(e.key==='ArrowUp'){ if(idxIstoric>0){idxIstoric--;intr.value=istoric[idxIstoric]||'';} e.preventDefault(); }
+      else if(e.key==='ArrowDown'){ if(idxIstoric<istoric.length-1){idxIstoric++;intr.value=istoric[idxIstoric]||'';} else {idxIstoric=istoric.length;intr.value='';} e.preventDefault(); }
+      else if(e.key==='Tab'){
+        e.preventDefault();
+        const v=intr.value;
+        const sp=v.lastIndexOf(' ');
+        const inceput=(sp===-1)?v:v.slice(sp+1);   // ce completăm
+        const prefix=(sp===-1)?'':v.slice(0,sp+1); // ce rămâne neatins
+        if(!inceput) return;
+        let candidati;
+        if(sp===-1){
+          // primul cuvânt → completează comenzi + cuvinte învățate
+          const voc=Object.keys((Memorie.ia().vocabular)||{});
+          candidati=[...Object.keys(comenzi), ...voc].filter(c=>c.startsWith(inceput.toLowerCase()));
+        } else {
+          // după comandă → completează nume de fișiere
+          const toate=await Depozit.toate();
+          candidati=toate.map(f=>f.cale).filter(c=>c.toLowerCase().startsWith(inceput.toLowerCase()));
+        }
+        if(!candidati.length) return;
+        if(candidati.length===1){ intr.value=prefix+candidati[0]+' '; }
+        else {
+          // prefixul comun cel mai lung
+          let comun=candidati[0];
+          for(const c of candidati){ while(!c.toLowerCase().startsWith(comun.toLowerCase())) comun=comun.slice(0,-1); }
+          intr.value=prefix+comun;
+          scrie(candidati.slice(0,12).join('   '),'stins');
+        }
+      }
+    });
+    // tragi un fișier din Fișiere peste Terminal → îi pune numele în comandă
+    const radTerm = corp;
+    // în timpul unei trageri interne ținem calea aici (dataTransfer e „gol" la dragover în unele browsere)
+    function permiteDrop(e){
+      // dacă e o tragere internă Logos SAU nu știm încă, permitem
+      if(!e.dataTransfer) return false;
+      const t=[...e.dataTransfer.types];
+      return t.includes('text/logos-fisier') || (window.__caleTrasa && !t.includes('Files'));
+    }
+    radTerm.addEventListener('dragenter',e=>{
+      if(!permiteDrop(e)) return;
+      e.preventDefault(); e.stopPropagation();
+      radTerm.classList.add('term-tinta');
+    });
+    radTerm.addEventListener('dragover',e=>{
+      if(!permiteDrop(e)) return;
+      e.preventDefault(); e.stopPropagation();   // ESENȚIAL: fără asta, drop nu se declanșează
+      e.dataTransfer.dropEffect='copy';
+      radTerm.classList.add('term-tinta');
+    });
+    radTerm.addEventListener('dragleave',e=>{
+      if(!radTerm.contains(e.relatedTarget)) radTerm.classList.remove('term-tinta');
+    });
+    radTerm.addEventListener('drop',e=>{
+      e.preventDefault(); e.stopPropagation();
+      radTerm.classList.remove('term-tinta');
+      let cale='';
+      try{ cale=e.dataTransfer.getData('text/logos-fisier') || e.dataTransfer.getData('text/plain'); }catch(_){}
+      if(!cale) cale = window.__caleTrasa || '';
+      if(!cale) return;
+      intr.value = (intr.value ? intr.value.replace(/\s*$/,'')+' ' : '') + cale + ' ';
+      intr.focus();
+    });
+    setTimeout(()=>intr.focus(),350);
+  }
+});
+
+
+/* ============================================================
+   PORNIREA SISTEMULUI
+   ============================================================ */
+async function porneste(){
+  await Depozit.deschide();
+  await Memorie.incarca();
+  // marchează prima pornire (o singură dată), pentru statistici
+  if(!Memorie.ia().primaPornire){ await Memorie.salveaza({primaPornire:Date.now()}); }
+
+  // curățare: scoate aplicații vechi rămase în depozit (scrie.html, Cititor.html etc.)
+  try{
+    for(const vechi of ['scrie.html','Scrie.html','Cititor.html','Vizualizator Markdown.html','Fișier.html','Wiki Personal.html']){
+      const g=await Depozit.gaseste(vechi);
+      if(g) await Depozit.sterge(g.cale);
+    }
+  }catch(e){}
+
+  // la prima pornire, punem un fișier de bun-venit
+  const exista=await Depozit.toate();
+  if(!exista.length){
+    await Depozit.scrie({cale:'citeste-ma.md',tip:'md',creat:Date.now(),continut:
+`# Bine ai venit în Logos
+
+Acesta e sistemul tău. Trăiește în telefonul tău, offline.
+
+## Cum începi
+Deschide Terminalul (jos) și scrie \`ajutor\`.
+Comenzile sunt în română și lucrează doar în lumea Logos.
+
+## Ce poți face acum
+Creează fișiere, scrie în ele, le citești, le ștergi.
+Tot ce salvezi rămâne aici, chiar dacă închizi aplicația.
+
+Restul îl construim împreună.`});
+
+    // exemplu .md ca să poți testa deschiderea în vizualizator
+    await Depozit.scrie({cale:'exemplu.md',tip:'md',creat:Date.now(),continut:
+`# Exemplu
+
+Acesta e un fișier **Markdown**. Tap pe el în Fișiere și se deschide
+într-o aplicație-oaspete de citire, conectată la sistem prin punte.
+
+## Liste
+- punct unu
+- punct doi
+
+> Un citat, ca să vezi formatarea.`});
+  }
+
+  
+  
+  // construiește grila de aplicații din ce s-a înregistrat în nucleu
+  const grila=document.getElementById('grila');
+  grila.innerHTML='';
+  for(const app of Nucleu.lista()){
+    const ic=document.createElement('div'); ic.className='ic';
+    ic.innerHTML=`<div class="glif">${app.iconita}</div><div class="nume">${app.nume}</div>`;
+    ic.addEventListener('click',()=>Nucleu.lanseaza(app.id));
+    grila.appendChild(ic);
+  }
+
+  document.getElementById('salut-desktop').innerHTML=
+    'Sistemul <b>Logos</b> e pornit. Totul aici trăiește în telefonul tău, offline.<br>Atinge o aplicație, sau deschide <b>Terminalul</b> și scrie <b>ajutor</b>.';
+
+  // LogOS (stânga sus) = Acasă
+  document.getElementById('marca').addEventListener('click',e=>{ e.stopPropagation(); comutaMeniuStart(); });
+  document.getElementById('marca').style.cursor='pointer';
+
+  // ---- MEMORIA: Logos te primește înapoi unde ai rămas ----
+  await Memorie.incarca();
+  const st=Memorie.ia();
+  const deschise=(st&&st.deschise&&st.deschise.length)?st.deschise
+                  :(st&&st.ultimaApp?[st.ultimaApp]:[]);
+  const validApp=id=>Nucleu.lista().some(a=>a.id===id);
+  const deValid=deschise.filter(validApp);
+  if(deValid.length){
+    const salut=document.getElementById('salut-desktop');
+    salut.innerHTML='Bun venit înapoi. Logos te-a ținut minte — '+
+      'redeschid ce aveai deschis ('+deValid.length+').';
+    // redeschide toate, în ordine, ultima rămâne în față
+    let intarziere=500;
+    for(const id of deValid){
+      setTimeout(()=>Nucleu.lanseaza(id, (id===st.ultimaApp?(st.ctx||{}):{})), intarziere);
+      intarziere+=250;
+    }
+    // după ce s-au redeschis, re-sincronizează layout-ul (mai ales pe laptop)
+    setTimeout(()=>{ actualizeazaMod(); aplicaLatimiSalvate(); }, intarziere+150);
+  }
+}
+// ---- MOD BIROU: detectează ecran mare (laptop/desktop) ----
+// are utilizatorul un arătător fin (mouse/trackpad) sau degetul?
+function areMouse(){
+  try{
+    return window.matchMedia('(pointer: fine)').matches
+        && window.matchMedia('(hover: hover)').matches;
+  }catch(e){ return true; }
+}
+function actualizeazaMod(){
+  const eraBirou = document.body.classList.contains('birou');
+  // ferestre alăturate pe orice ecran lat (laptop ȘI tabletă)
+  // Modul birou (ferestre alăturate) cere ecran lat ȘI mouse adevărat.
+  // Pe iPad, cu degetul, modul birou se blochează pe jumătate — nu am putut
+  // găsi de ce (Safari se poartă altfel). Așa că acolo rămâne modul telefon,
+  // unde totul merge. Cu o tastatură+trackpad, iPad-ul va primi modul birou singur.
+  const birou = window.innerWidth >= 900 && areMouse();
+  document.body.classList.toggle('birou', birou);
+  // pe atingere marcăm separat, ca să nu punem reguli de mouse
+  document.body.classList.toggle('deget', !areMouse());
+  if(birou){
+    for(const f of ferestreDeschise){ f.el.classList.add('deschis'); f.el.classList.remove('fundal'); }
+    asazaManere();
+  } else {
+    // curăță mânerele; înapoi pe telefon: doar cea activă vizibilă
+    stratFerestre.querySelectorAll('.maner-redim').forEach(m=>m.remove());
+    for(const f of ferestreDeschise){
+      if(f.id===activaId){ f.el.classList.add('deschis'); f.el.classList.remove('fundal'); }
+      else { f.el.classList.remove('deschis'); f.el.classList.add('fundal'); }
+      f.el.style.flexBasis='';
+    }
+  }
+  // dacă modul chiar s-a schimbat, re-randează Fișiere (panoul lateral apare/dispare)
+  if(eraBirou!==birou){
+    document.querySelectorAll('.fisiere').forEach(r=>{ if(r._rerandeaza) r._rerandeaza(); });
+  }
+}
+// pune mânere de redimensionare între ferestre
+// resetează lățimile fixe, ca ferestrele rămase să se împartă egal
+function reseteazaLatimi(){
+  for(const f of ferestreDeschise){ f.el.style.flex=''; }
+}
+function asazaManere(){
+  stratFerestre.querySelectorAll('.maner-redim').forEach(m=>m.remove());
+  const vizibile=ferestreDeschise.filter(f=>f.el.classList.contains('deschis'));
+  for(let i=0;i<vizibile.length-1;i++){
+    const stanga=vizibile[i].el, dreapta=vizibile[i+1].el;
+    const m=document.createElement('div'); m.className='maner-redim';
+    dreapta.before(m);
+    facRedimensibil(m, stanga, dreapta);
+  }
+}
+function facRedimensibil(maner, stanga, dreapta){
+  let activ=false;
+  function porneste(clientX){
+    if(activ) return; activ=true;
+    maner.classList.add('activ');
+    const x0=clientX, ws=stanga.offsetWidth, wd=dreapta.offsetWidth;
+    const voal=document.createElement('div');
+    voal.style.cssText='position:fixed;inset:0;z-index:99999;cursor:col-resize;background:transparent';
+    document.body.appendChild(voal);
+    function misca(cx){
+      const dif=cx-x0;
+      stanga.style.flex='0 0 '+Math.max(180, ws+dif)+'px';
+      dreapta.style.flex='0 0 '+Math.max(180, wd-dif)+'px';
+    }
+    const onMove=ev=>{ misca(ev.clientX); ev.preventDefault(); };
+    const onUp=()=>{
+      activ=false;
+      maner.classList.remove('activ'); voal.remove();
+      window.removeEventListener('pointermove',onMove);
+      window.removeEventListener('pointerup',onUp);
+      window.removeEventListener('mousemove',onMove);
+      window.removeEventListener('mouseup',onUp);
+      salveazaLatimi();   // ține minte cum ai împărțit
+    };
+    window.addEventListener('pointermove',onMove);
+    window.addEventListener('pointerup',onUp);
+    window.addEventListener('mousemove',onMove);
+    window.addEventListener('mouseup',onUp);
+  }
+  maner.addEventListener('pointerdown',e=>{ e.preventDefault(); e.stopPropagation(); porneste(e.clientX); });
+  maner.addEventListener('mousedown',e=>{ e.preventDefault(); e.stopPropagation(); porneste(e.clientX); });
+}
+// ține minte lățimile (după appId, ca să le regăsească la redeschidere)
+function salveazaLatimi(){
+  const lat={};
+  for(const f of ferestreDeschise){
+    if(f.el.style.flex && f.appId) lat[f.appId]=f.el.offsetWidth;
+  }
+  Memorie.salveaza({latimiFerestre:lat});
+}
+function aplicaLatimiSalvate(){
+  const lat=(Memorie.ia().latimiFerestre)||{};
+  const vizibile=ferestreDeschise.filter(f=>f.el.classList.contains('deschis'));
+  if(vizibile.length<2) return;
+  let cuLatime=0;
+  for(const f of vizibile){ if(lat[f.appId]) cuLatime++; }
+  // aplicăm doar dacă toate au lățime salvată (altfel lăsăm împărțirea egală)
+  if(cuLatime!==vizibile.length) return;
+  const total=stratFerestre.offsetWidth - (vizibile.length-1)*5;
+  const suma=vizibile.reduce((s,f)=>s+lat[f.appId],0);
+  if(suma<=0) return;
+  for(const f of vizibile){
+    f.el.style.flex='0 0 '+Math.max(180, Math.round(lat[f.appId]/suma*total))+'px';
+  }
+}
+window.addEventListener('resize', actualizeazaMod);
+
+// ---- DRAG & DROP: tragi fișiere din sistem direct în Logos ----
+(function(){
+  let voalDrop=null;
+  function aratoVoal(){
+    if(voalDrop) return;
+    voalDrop=document.createElement('div');
+    voalDrop.className='drop-voal';
+    voalDrop.innerHTML='<div class="drop-cutie">▤<br>Lasă fișierele aici<br><small>se salvează în Logos</small></div>';
+    document.body.appendChild(voalDrop);
+  }
+  function ascundeVoal(){ if(voalDrop){ voalDrop.remove(); voalDrop=null; } }
+
+  window.addEventListener('dragover',e=>{
+    if(window.__caleTrasa) return;              // tragere internă Logos
+    if(!e.dataTransfer) return;
+    if(![...e.dataTransfer.types].includes('Files')) return;
+    e.preventDefault(); aratoVoal();
+  });
+  window.addEventListener('dragleave',e=>{
+    if(e.clientX===0 && e.clientY===0) ascundeVoal();
+  });
+  window.addEventListener('drop',async e=>{
+    if(window.__caleTrasa){ ascundeVoal(); return; }
+    if(!e.dataTransfer || !e.dataTransfer.files.length) return;
+    e.preventDefault(); ascundeVoal();
+    let n=0, ultim=null, nApps=0;
+    // dacă Fișiere e deschisă într-un folder, punem fișierele acolo
+    let folderTinta='';
+    const fmDeschis=document.querySelector('.fisiere');
+    if(fmDeschis && fmDeschis._calea) folderTinta=fmDeschis._calea()||'';
+
+    for(const file of e.dataTransfer.files){
+      // doar text/markdown/html — Logos nu ține binare
+      const ext=(file.name.split('.').pop()||'').toLowerCase();
+      if(!['md','txt','html','htm','json','csv','js','css'].includes(ext)){
+        alert('Sar peste „'+file.name+'" — Logos ține doar fișiere text (md, txt, html, json, csv...).');
+        continue;
+      }
+      const text=await file.text();
+      const cale=folderTinta+file.name;
+      const tip = (ext==='md')?'md' : (ext==='html'||ext==='htm')?'html' : 'text';
+      const exista=await Depozit.gaseste(cale);
+      if(exista && !confirm('„'+cale+'" există deja. Îl înlocuiești?')) continue;
+      const f={cale, tip, continut:text, creat:Date.now()};
+      await Depozit.scrie(f); n++; ultim=f;
+      if(tip==='html') nApps++;
+    }
+    if(n){
+      const fisiereDeschis = document.querySelectorAll('.fisiere');
+      if(fisiereDeschis.length){
+        fisiereDeschis.forEach(r=>{ if(r._rerandeaza) r._rerandeaza(); });
+      } else {
+        Nucleu.lanseaza('fisiere');
+      }
+      if(nApps){
+        alert(nApps+' fișier(e) .html au fost adăugate ca APLICAȚII.\nLe găsești în „Aplicații" (iconița ▷), nu în Fișiere.');
+      }
+    }
+  });
+})();
+
+// ---- scurtături din taste (utile pe laptop) ----
+window.addEventListener('keydown',e=>{
+  const scrieCiva = e.target.matches('input,textarea,[contenteditable]');
+  // tasta Windows/Meta (sau Ctrl+Space) → meniul Start
+  if(e.key==='Meta' || (e.ctrlKey && e.key===' ')){
+    e.preventDefault(); comutaMeniuStart(); return;
+  }
+  if(e.ctrlKey && (e.key==='k'||e.key==='K')){ e.preventDefault(); Nucleu.lanseaza('terminal'); return; }
+  if(e.ctrlKey && (e.key==='e'||e.key==='E')){ e.preventDefault(); Nucleu.lanseaza('fisiere'); return; }
+  if(e.ctrlKey && (e.key==='u'||e.key==='U')){ e.preventDefault(); Nucleu.lanseaza('utilitare'); return; }
+  // Ctrl+N: fișier nou
+  if(e.ctrlKey && (e.key==='n'||e.key==='N')){
+    e.preventDefault(); fisierNouGlobal(); return;
+  }
+  // Ctrl+W: închide fereastra activă
+  if(e.ctrlKey && (e.key==='w'||e.key==='W')){
+    e.preventDefault();
+    if(activaId) inchideFereastraId(activaId);
+    return;
+  }
+  // Săgeți simple: comută între ferestre — dar DOAR când nu scrii undeva
+  if((e.key==='ArrowLeft' || e.key==='ArrowRight') && !scrieCiva && !e.ctrlKey && !e.altKey){
+    if(ferestreDeschise.length<2) return;
+    e.preventDefault();
+    const i=ferestreDeschise.findIndex(f=>f.id===activaId);
+    const pas = e.key==='ArrowRight' ? 1 : -1;
+    const j = (i===-1) ? 0 : (i+pas+ferestreDeschise.length)%ferestreDeschise.length;
+    aratoFereastra(ferestreDeschise[j].id);
+    return;
+  }
+  // Ctrl+Săgeți: la fel, dar merge și când scrii într-un câmp
+  if(e.ctrlKey && (e.key==='ArrowLeft' || e.key==='ArrowRight')){
+    e.preventDefault();
+    if(ferestreDeschise.length<2) return;
+    const i=ferestreDeschise.findIndex(f=>f.id===activaId);
+    const pas = e.key==='ArrowRight' ? 1 : -1;
+    const j = (i===-1) ? 0 : (i+pas+ferestreDeschise.length)%ferestreDeschise.length;
+    aratoFereastra(ferestreDeschise[j].id);
+    return;
+  }
+  // Ctrl+1..9: direct la fereastra n (rămâne, ca alternativă)
+  if(e.ctrlKey && /^[1-9]$/.test(e.key)){
+    e.preventDefault();
+    const n=parseInt(e.key)-1;
+    if(ferestreDeschise[n]) aratoFereastra(ferestreDeschise[n].id);
+    return;
+  }
+  if(e.key==='Escape' && !scrieCiva){
+    const ms=document.getElementById('meniu-start');
+    if(ms){ ms.remove(); return; }   // întâi închide meniul, dacă e deschis
+    mergiAcasa(); return;
+  }
+});
+
+(async()=>{
+  await EcranLacat.asteaptaDeblocare();   // parola master se cere o singură dată, la deschidere
+  await porneste();
+  actualizeazaMod();
+
+  // blocare manuală, disponibilă oricând din meniul de start ("Blochează acum")
+  let seBlocheaza=false;
+  window.reblocheazaAcum=async function(){
+    if(seBlocheaza || !Cripto.esteDeblocat()) return;
+    seBlocheaza=true;
+    await EcranLacat.reblocheaza();
+    seBlocheaza=false;
+  };
+
+  // cheia de criptare trăiește doar în memorie — la închiderea reală a paginii dispare de la sine
+  window.addEventListener('pagehide',()=>{ Cripto.blocheaza(); });
+})();
+
+// ---- PWA: paznicul offline (merge doar când Logos e servit prin https sau localhost) ----
+if('serviceWorker' in navigator && (location.protocol==='https:' || location.hostname==='localhost')){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{ /* fără paznic — Logos merge oricum */ });
+  });
+}
+</script>
+</body>
+</html>
